@@ -14,3 +14,8 @@ cabal.sandbox.config
 *.prof
 *.aux
 *.hp
+Setup.hs
+*.swp
+shell.nix
+*.log
+tags
