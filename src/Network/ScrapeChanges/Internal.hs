@@ -16,6 +16,7 @@ module Network.ScrapeChanges.Internal (
 , mailAddrName
 , mailAddr
 , _MailConfig
+, _OtherConfig
 , ValidationError(..)
 ) where
   import Data.Validation
