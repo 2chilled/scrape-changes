@@ -1,13 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Network.ScrapeChanges.Internal.Test where
 import Network.ScrapeChanges.Internal as SUT
 import qualified Network.ScrapeChanges as SC
 import qualified Data.Maybe as M
 import qualified Data.List as L
-import qualified Data.Foldable as F
-import Test.HUnit
+import Test.HUnit hiding (assertFailure)
 import Test.QuickCheck
-import qualified Test.QuickCheck.Gen as Gen
 import Test.Framework as TF
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
@@ -34,8 +33,10 @@ instance Arbitrary (ScrapeInfo ()) where
     let setConfig = scrapeInfoCallbackConfig .~ config'
     return $ setUrl . setConfig $ SC.defaultScrapeInfo
 
+tMailAddr :: MailAddr
 tMailAddr = MailAddr (Just "Max Mustermann") "max@mustermann.com"
 
+correctUrl :: String
 correctUrl = "http://www.google.de"
 
 correctMailScrapeInfo :: ScrapeInfo t
@@ -66,18 +67,28 @@ validateScrapeInfoShouldValidateOnValidInput =
         result = SUT.validateScrapeInfo scrapeInfo
     in  V.AccSuccess scrapeInfo @=? result
 
-validateScrapeInfoShouldSatisfyAllInvariants :: ScrapeInfo () -> Bool
-validateScrapeInfoShouldSatisfyAllInvariants si 
-  | M.isJust (si ^? (scrapeInfoCallbackConfig . _OtherConfig)) = 
-    let result = SUT.validateScrapeInfo si
-        success = result ^? _Success
-        failure = result ^? _Failure
-        assertFailure = (null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> failure
-        assertSuccess = const True <$> success
-    in M.fromMaybe False `F.any` [assertFailure, assertSuccess]
+validateScrapeInfoShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
+validateScrapeInfoShouldSatisfyAllInvariants si =
+  let result = SUT.validateScrapeInfo si
+      success = result ^? _Success
+      failure = result ^? _Failure
+      otherConfigLens = scrapeInfoCallbackConfig . _OtherConfig
+      mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
+  in case si of _ 
+                  | M.isJust (si ^? otherConfigLens) ->
+                    let p1 = label "Validation successful" (M.isJust success)
+                        badUrlErrorsOnly = ((null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> failure)
+                        p2 = label "Validation unsuccessful because of bad url " (False `M.fromMaybe` badUrlErrorsOnly)
+                    in p1 .||. p2
+                  | M.isJust (si ^? mailConfigLens) -> 
+                    let mailConfig = undefined `M.fromMaybe` (si ^? mailConfigLens)
+                        mailFrom' = mailConfig ^. mailFrom
+                        emptyMailFromProp = (not . null $ mailFrom') 
+                                              || (MailConfigEmptyFrom `elem` (L.concat . M.maybeToList $ failure))
+                    in property emptyMailFromProp
+                  | otherwise -> undefined
 
-validateScrapeInfoShouldSatisfyAllInvariants _ = True
-
+tests :: [TF.Test]
 tests = 
   [
     testGroup "Network.ScrapeChanges.Internal"
