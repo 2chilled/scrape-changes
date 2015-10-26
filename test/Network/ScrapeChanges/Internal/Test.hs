@@ -74,31 +74,31 @@ validateScrapeInfoShouldValidateOnValidInput =
         result = SUT.validateScrapeInfo scrapeInfo
     in  V.AccSuccess scrapeInfo @=? result
 
-validateScrapeInfoShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
-validateScrapeInfoShouldSatisfyAllInvariants si =
+validateScrapeInfoWithOtherConfigShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
+validateScrapeInfoWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _OtherConfig) ==>
   let result = SUT.validateScrapeInfo si
-      success = result ^? V._Success
+      p1 = property $ M.isJust (result ^? V._Success)
+      badUrlErrorsOnly = (null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> (result ^? V._Failure)
+      p2 = property $ False `M.fromMaybe` badUrlErrorsOnly
+  in p1 .||. p2
+  
+
+validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
+validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _MailConfig) ==>
+  let result = SUT.validateScrapeInfo si
       failure = result ^? V._Failure
-      otherConfigLens = scrapeInfoCallbackConfig . _OtherConfig
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
-  in case si of _ | M.isJust (si ^? otherConfigLens) ->
-                    let p1 = label "Validation successful" (M.isJust success)
-                        badUrlErrorsOnly = ((null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> failure)
-                        p2 = label "Validation unsuccessful because of bad url " (False `M.fromMaybe` badUrlErrorsOnly)
-                    in p1 .||. p2
-                  | M.isJust (si ^? mailConfigLens) -> 
-                    let mailConfig = undefined `M.fromMaybe` (si ^? mailConfigLens)
-                        mailFrom' = mailConfig ^. mailFrom
-                        emptyMailFromProp = (not . null $ mailFrom') 
-                                              || (MailConfigEmptyFrom `elem` (L.concat . M.maybeToList $ failure))
-                        invalidMailFromAddrs = let mailAddrs = mailConfig ^.. (mailFrom . traverse . mailAddr)
-                                                   f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
-                                               in f `filter` mailAddrs
-                        invalidMailFromAddrsProp = let mapped' = MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
-                                                       expected = (\errors' -> (`elem` errors') `L.all` mapped') <$> failure 
-                                                   in True `M.fromMaybe` expected
-                    in property emptyMailFromProp .&. property invalidMailFromAddrsProp
-                  | otherwise -> undefined
+      (Just mailConfig) = si ^? mailConfigLens
+      mailFrom' = mailConfig ^. mailFrom
+      emptyMailFromProp = (not . null $ mailFrom') 
+                            || (MailConfigEmptyFrom `elem` (L.concat . M.maybeToList $ failure))
+      invalidMailFromAddrs = let mailAddrs = mailConfig ^.. (mailFrom . traverse . mailAddr)
+                                 f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
+                             in f `filter` mailAddrs
+      invalidMailFromAddrsProp = let mapped' = MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
+                                     expected = (\errors' -> (`elem` errors') `L.all` mapped') <$> failure 
+                                 in True `M.fromMaybe` expected
+  in property emptyMailFromProp .&. property invalidMailFromAddrsProp
 
 tests :: [TF.Test]
 tests = 
@@ -111,8 +111,10 @@ tests =
         validateScrapeInfoShouldValidateOnValidInput
     , testCase "validateScrapeInfo with bad mail from should not validate"
         validateScrapeInfoWithBadMailFromShouldNotValidate
-    , testProperty "validateScrapeInfo should satisfy all invariants"
-        validateScrapeInfoShouldSatisfyAllInvariants
+    , testProperty "validateScrapeInfo with mail config should satisfy all invariants"
+        validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants
+    , testProperty "validateScrapeInfo with other config should satisfy all invariants"
+        validateScrapeInfoWithOtherConfigShouldSatisfyAllInvariants
     ]
   ]
 
