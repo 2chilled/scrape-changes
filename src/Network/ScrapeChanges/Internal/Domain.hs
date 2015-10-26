@@ -34,6 +34,7 @@ data ScrapeInfo t = ScrapeInfo {
 data ValidationError = UrlNotAbsolute 
                      | UrlProtocolInvalid 
                      | MailConfigEmptyFrom 
+                     | MailConfigInvalidMailFromAddr String
                        deriving (Show, Eq)
 
 type ScrapeValidation t = AccValidation [ValidationError] t

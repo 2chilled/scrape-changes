@@ -11,11 +11,15 @@ import Test.Framework as TF
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Control.Lens
-import Data.Validation
+import qualified Data.ByteString.Lens as ByteStringLens
 import qualified Data.Validation as V
+import qualified Text.Email.Validate as EmailValidate
+
+emailAddressGen :: Gen String
+emailAddressGen = oneof [pure correctMailAddr, arbitrary]
 
 instance Arbitrary MailAddr where
-  arbitrary = MailAddr <$> arbitrary <*> arbitrary
+  arbitrary = MailAddr <$> arbitrary <*> emailAddressGen
 
 instance Arbitrary Mail where
   arbitrary = Mail <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
@@ -35,6 +39,9 @@ instance Arbitrary (ScrapeInfo ()) where
 
 tMailAddr :: MailAddr
 tMailAddr = MailAddr (Just "Max Mustermann") "max@mustermann.com"
+
+correctMailAddr :: String
+correctMailAddr = "correct@mail.com"
 
 correctUrl :: String
 correctUrl = "http://www.google.de"
@@ -70,12 +77,11 @@ validateScrapeInfoShouldValidateOnValidInput =
 validateScrapeInfoShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
 validateScrapeInfoShouldSatisfyAllInvariants si =
   let result = SUT.validateScrapeInfo si
-      success = result ^? _Success
-      failure = result ^? _Failure
+      success = result ^? V._Success
+      failure = result ^? V._Failure
       otherConfigLens = scrapeInfoCallbackConfig . _OtherConfig
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
-  in case si of _ 
-                  | M.isJust (si ^? otherConfigLens) ->
+  in case si of _ | M.isJust (si ^? otherConfigLens) ->
                     let p1 = label "Validation successful" (M.isJust success)
                         badUrlErrorsOnly = ((null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> failure)
                         p2 = label "Validation unsuccessful because of bad url " (False `M.fromMaybe` badUrlErrorsOnly)
@@ -85,7 +91,13 @@ validateScrapeInfoShouldSatisfyAllInvariants si =
                         mailFrom' = mailConfig ^. mailFrom
                         emptyMailFromProp = (not . null $ mailFrom') 
                                               || (MailConfigEmptyFrom `elem` (L.concat . M.maybeToList $ failure))
-                    in property emptyMailFromProp
+                        invalidMailFromAddrs = let mailAddrs = mailConfig ^.. (mailFrom . traverse . mailAddr)
+                                                   f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
+                                               in f `filter` mailAddrs
+                        invalidMailFromAddrsProp = let mapped' = MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
+                                                       expected = (\errors' -> (`elem` errors') `L.all` mapped') <$> failure 
+                                                   in True `M.fromMaybe` expected
+                    in property emptyMailFromProp .&. property invalidMailFromAddrsProp
                   | otherwise -> undefined
 
 tests :: [TF.Test]

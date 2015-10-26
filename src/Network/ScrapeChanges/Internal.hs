@@ -22,6 +22,8 @@ import Control.Lens
 import qualified Network.URI as U
 import qualified Data.Foldable as F
 import Network.ScrapeChanges.Internal.Domain
+import qualified Data.ByteString.Lens as ByteStringLens
+import qualified Text.Email.Validate as EmailValidate
 
 defaultScrapeInfo :: ScrapeInfo t
 defaultScrapeInfo = ScrapeInfo {
@@ -44,9 +46,13 @@ validateScrapeInfo si =
 
 validateMailConfig :: Mail -> ScrapeValidation Mail
 validateMailConfig m = let fromIsEmpty = null $ m ^. mailFrom
+                           mailFromAddrs = m ^.. (mailFrom . traverse . mailAddr)
+                           isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
+                           invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> (isInvalidMailAddr `filter` mailFromAddrs)
                            ok = pure m
                        in const m <$> F.sequenceA_ [
                          if fromIsEmpty then AccFailure [MailConfigEmptyFrom] else ok
+                       , if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
                        ]
 
 validateCallbackConfig :: CallbackConfig t -> ScrapeValidation (CallbackConfig t)
