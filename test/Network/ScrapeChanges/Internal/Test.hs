@@ -53,8 +53,10 @@ correctUrl = "http://www.google.de"
 
 correctMailScrapeInfo :: ScrapeInfo t
 correctMailScrapeInfo = let setUrl = scrapeInfoUrl .~ correctUrl
-                            setMailFrom = scrapeInfoCallbackConfig . _MailConfig . mailFrom .~ (tMailAddr :| []) 
-                        in setUrl . setMailFrom $ SC.defaultScrapeInfo
+                            setMail x = scrapeInfoCallbackConfig . _MailConfig . x .~ (tMailAddr :| [])
+                            setMailFrom = setMail mailFrom
+                            setMailTo = setMail mailTo 
+                        in setUrl . setMailFrom . setMailTo $ SC.defaultScrapeInfo
 
 correctOtherScrapeInfo :: ScrapeInfo ()
 correctOtherScrapeInfo = let setCallbackConfig = scrapeInfoCallbackConfig .~ OtherConfig (const $ return ())
@@ -88,13 +90,16 @@ validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? 
       failure = result ^? V._Failure
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
       (Just mailConfig) = si ^? mailConfigLens
-      invalidMailFromAddrs = let mailAddrs = mailConfig ^.. (mailFrom . traverse . mailAddr)
-                                 f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
-                             in f `L.filter` mailAddrs
-      invalidMailFromAddrsProp = let mapped' = MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
-                                     expected = (\errors' -> (`elem` errors') `L.all` mapped') <$> failure 
-                                 in True `M.fromMaybe` expected
-  in property invalidMailFromAddrsProp
+      invalidMailAddrs t = let mailAddrs = mailConfig ^.. (t . traverse . mailAddr)
+                               f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
+                           in f `L.filter` mailAddrs
+      invalidMailAddrsProp es = let expected = (\errors' -> (`elem` errors') `L.all` es) <$> failure 
+                                in True `M.fromMaybe` expected
+      invalidMailFromAddrs = invalidMailAddrs mailFrom
+      invalidMailFromAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
+      invalidMailToAddrs = invalidMailAddrs mailTo
+      invalidMailToAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailToAddr <$> invalidMailToAddrs
+  in property invalidMailFromAddrsProp .&&. property invalidMailToAddrsProp
 
 tests :: [TF.Test]
 tests = 

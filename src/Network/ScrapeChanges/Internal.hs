@@ -50,13 +50,18 @@ validateScrapeInfo si =
   in const si <$> F.sequenceA_ [toUnit urlValidation, toUnit callbackValidation]
 
 validateMailConfig :: Mail -> ScrapeValidation Mail
-validateMailConfig m = let mailFromAddrs = fromList $ m ^.. (mailFrom . traverse . mailAddr)
-                           isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
-                           invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> (isInvalidMailAddr `filter` mailFromAddrs)
-                           ok = pure m
-                       in const m <$> F.sequenceA_ [
-                         if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
-                       ]
+validateMailConfig m = 
+  let mailAddrs t = fromList $ m ^.. (t . traverse . mailAddr)
+      isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
+      mailFromAddrs = mailAddrs mailFrom
+      invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> (isInvalidMailAddr `filter` mailFromAddrs)
+      mailToAddrs = mailAddrs mailTo
+      invalidMailToAddrs = MailConfigInvalidMailToAddr <$> (isInvalidMailAddr `filter` mailToAddrs)
+      ok = pure m
+  in const m <$> F.sequenceA_ [
+    if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
+  , if null invalidMailToAddrs then ok else AccFailure invalidMailToAddrs
+  ]
 
 validateCallbackConfig :: CallbackConfig t -> ScrapeValidation (CallbackConfig t)
 validateCallbackConfig (MailConfig m) = MailConfig <$> validateMailConfig m
