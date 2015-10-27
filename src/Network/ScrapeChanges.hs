@@ -14,10 +14,16 @@ type Response = String
 type Url = String
 type ScrapeInfoParser = String -> String
 
-scrape :: ScrapeInfo t -> ScrapeInfoParser -> IO (Either Error Response)
+{-
+- TODO
+- 1. Validate scrapeInfo
+- 2. Execute scrapeInfo
+- 3. Return response
+-}
+scrape :: ScrapeInfo t -> ScrapeInfoParser -> IO (Either [Error] Response)
 scrape = undefined
 
-scrapeAll :: [(ScrapeInfo t, ScrapeInfoParser)] -> IO [(Url, Either Error Response)]
-scrapeAll infos = let responses = T.sequence $ TU.uncurry scrape <$> infos --maybe parallelize using parallel-io
+scrapeAll :: [(ScrapeInfo t, ScrapeInfoParser)] -> IO [(Url, Either [Error] Response)]
+scrapeAll infos = let responses = T.sequence $ TU.uncurry scrape <$> infos --TODO maybe parallelize using parallel-io
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in (urls `zip`) <$> responses

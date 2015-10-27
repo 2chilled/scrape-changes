@@ -27,6 +27,7 @@ instance Eq (CallbackConfig t) where
   (OtherConfig _) == (OtherConfig _) = False
   (MailConfig m1) == (MailConfig m2) = m1 == m2
 
+-- TODO add cron configuration
 data ScrapeInfo t = ScrapeInfo {
   _scrapeInfoUrl :: String
 , _scrapeInfoCallbackConfig :: CallbackConfig t
