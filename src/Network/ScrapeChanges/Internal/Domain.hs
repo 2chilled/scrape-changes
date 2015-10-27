@@ -18,8 +18,8 @@ data Mail = Mail {
 data CallbackConfig t = MailConfig Mail | OtherConfig (String -> IO t)
 
 instance Show (CallbackConfig t) where
-  show (MailConfig mail) = show mail
-  show (OtherConfig _) = "OtherConfig (String -> IO t)"
+  show (MailConfig mail) = "CallbackConfig (" ++ show mail ++ ")"
+  show (OtherConfig _) = "CallbackConfig (OtherConfig (String -> IO t))"
 
 instance Eq (CallbackConfig t) where
   (MailConfig _) == (OtherConfig _) = False
@@ -43,5 +43,4 @@ type ScrapeValidation t = AccValidation [ValidationError] t
 makeLenses ''MailAddr
 makeLenses ''Mail
 makeLenses ''ScrapeInfo
-makeLenses ''CallbackConfig
 makePrisms ''CallbackConfig
