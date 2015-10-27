@@ -17,7 +17,9 @@ module Network.ScrapeChanges.Internal (
 , _OtherConfig
 , ValidationError(..)
 ) where
+import Prelude hiding (filter)
 import Data.Validation
+import Data.List.NonEmpty
 import Control.Lens
 import qualified Network.URI as U
 import qualified Data.Foldable as F
@@ -25,14 +27,17 @@ import Network.ScrapeChanges.Internal.Domain
 import qualified Data.ByteString.Lens as ByteStringLens
 import qualified Text.Email.Validate as EmailValidate
 
+invalidMailAddr :: MailAddr
+invalidMailAddr = MailAddr { _mailAddrName = Nothing, _mailAddr = "invalidmail" }
+
 defaultScrapeInfo :: ScrapeInfo t
 defaultScrapeInfo = ScrapeInfo {
   _scrapeInfoUrl = ""
 , _scrapeInfoCallbackConfig = MailConfig defaultMail
 } where defaultMail :: Mail
         defaultMail = Mail {
-          _mailFrom = []
-        , _mailTo = []
+          _mailFrom =  invalidMailAddr :| []
+        , _mailTo = invalidMailAddr :| []
         , _mailSubject = ""
         , _mailBody = ""
         }
@@ -45,14 +50,12 @@ validateScrapeInfo si =
   in const si <$> F.sequenceA_ [toUnit urlValidation, toUnit callbackValidation]
 
 validateMailConfig :: Mail -> ScrapeValidation Mail
-validateMailConfig m = let fromIsEmpty = null $ m ^. mailFrom
-                           mailFromAddrs = m ^.. (mailFrom . traverse . mailAddr)
+validateMailConfig m = let mailFromAddrs = fromList $ m ^.. (mailFrom . traverse . mailAddr)
                            isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
                            invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> (isInvalidMailAddr `filter` mailFromAddrs)
                            ok = pure m
                        in const m <$> F.sequenceA_ [
-                         if fromIsEmpty then AccFailure [MailConfigEmptyFrom] else ok
-                       , if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
+                         if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
                        ]
 
 validateCallbackConfig :: CallbackConfig t -> ScrapeValidation (CallbackConfig t)

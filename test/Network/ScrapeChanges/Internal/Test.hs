@@ -1,10 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Network.ScrapeChanges.Internal.Test where
+import Prelude hiding (filter)
 import Network.ScrapeChanges.Internal as SUT
 import qualified Network.ScrapeChanges as SC
 import qualified Data.Maybe as M
 import qualified Data.List as L
+import Data.List.NonEmpty
 import Test.HUnit hiding (assertFailure)
 import Test.QuickCheck
 import Test.Framework as TF
@@ -37,6 +39,9 @@ instance Arbitrary (ScrapeInfo ()) where
     let setConfig = scrapeInfoCallbackConfig .~ config'
     return $ setUrl . setConfig $ SC.defaultScrapeInfo
 
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    arbitrary = (:|) <$> arbitrary <*> arbitrary
+
 tMailAddr :: MailAddr
 tMailAddr = MailAddr (Just "Max Mustermann") "max@mustermann.com"
 
@@ -48,7 +53,7 @@ correctUrl = "http://www.google.de"
 
 correctMailScrapeInfo :: ScrapeInfo t
 correctMailScrapeInfo = let setUrl = scrapeInfoUrl .~ correctUrl
-                            setMailFrom = scrapeInfoCallbackConfig . _MailConfig . mailFrom .~ [tMailAddr]
+                            setMailFrom = scrapeInfoCallbackConfig . _MailConfig . mailFrom .~ (tMailAddr :| []) 
                         in setUrl . setMailFrom $ SC.defaultScrapeInfo
 
 correctOtherScrapeInfo :: ScrapeInfo ()
@@ -61,12 +66,6 @@ validateScrapeInfoWithBadInfoUrlShouldNotValidate =
         scrapeInfo = scrapeInfoUrl .~ wrongUrl $ correctMailScrapeInfo 
         result = SUT.validateScrapeInfo scrapeInfo
     in  V.AccFailure [UrlProtocolInvalid] @=? result
-
-validateScrapeInfoWithBadMailFromShouldNotValidate :: Assertion
-validateScrapeInfoWithBadMailFromShouldNotValidate = 
-    let scrapeInfo = (scrapeInfoCallbackConfig . _MailConfig . mailFrom) .~ [] $ correctMailScrapeInfo 
-        result = SUT.validateScrapeInfo scrapeInfo
-    in  V.AccFailure [SUT.MailConfigEmptyFrom] @=? result
 
 validateScrapeInfoShouldValidateOnValidInput :: Assertion
 validateScrapeInfoShouldValidateOnValidInput =
@@ -89,16 +88,13 @@ validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? 
       failure = result ^? V._Failure
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
       (Just mailConfig) = si ^? mailConfigLens
-      mailFrom' = mailConfig ^. mailFrom
-      emptyMailFromProp = (not . null $ mailFrom') 
-                            || (MailConfigEmptyFrom `elem` (L.concat . M.maybeToList $ failure))
       invalidMailFromAddrs = let mailAddrs = mailConfig ^.. (mailFrom . traverse . mailAddr)
                                  f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
-                             in f `filter` mailAddrs
+                             in f `L.filter` mailAddrs
       invalidMailFromAddrsProp = let mapped' = MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
                                      expected = (\errors' -> (`elem` errors') `L.all` mapped') <$> failure 
                                  in True `M.fromMaybe` expected
-  in property emptyMailFromProp .&. property invalidMailFromAddrsProp
+  in property invalidMailFromAddrsProp
 
 tests :: [TF.Test]
 tests = 
@@ -109,8 +105,6 @@ tests =
         validateScrapeInfoWithBadInfoUrlShouldNotValidate
     , testCase "validateScrapeInfo should validate on valid input"
         validateScrapeInfoShouldValidateOnValidInput
-    , testCase "validateScrapeInfo with bad mail from should not validate"
-        validateScrapeInfoWithBadMailFromShouldNotValidate
     , testProperty "validateScrapeInfo with mail config should satisfy all invariants"
         validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants
     , testProperty "validateScrapeInfo with other config should satisfy all invariants"

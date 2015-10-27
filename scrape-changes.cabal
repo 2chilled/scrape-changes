@@ -22,6 +22,7 @@ library
                       --,mime-mail >= 0.4 && < 0.5
                      , network-uri >=2.6.0.3 && < 2.6.1
                      , email-validate >= 2.0 && < 2.2
+                     , semigroups >= 0.16 && < 0.18
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -43,6 +44,7 @@ test-suite scrapechanges-tests
                    , validation
                    , network-uri >=2.6.0.3 && < 2.6.1
                    , email-validate >= 2.0 && < 2.2
+                   , semigroups >= 0.16 && < 0.18
   default-language:  Haskell2010
 
 source-repository head
