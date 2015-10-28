@@ -17,7 +17,6 @@ type Scraper = String -> String
 - TODO
 - 1. Validate scrapeInfo
 - 2. Maybe execute scrapeInfo
-- 3. Return response
 -}
 scrape :: ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
 scrape = undefined
