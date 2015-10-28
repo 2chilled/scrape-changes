@@ -1,29 +1,31 @@
 module Network.ScrapeChanges(
   scrape
+, repeatScrape
 , scrapeAll
-, ScrapeInfo(..)
-, defaultScrapeInfo
+, ScrapeConfig(..)
+, defaultScrapeConfig
 ) where
 import Network.ScrapeChanges.Internal
-import qualified Data.Traversable as T
+import qualified Network.ScrapeChanges.Internal.Domain as Domain
 import qualified Data.Tuple as TU
 import Control.Lens
 
-type Error = String
-type Response = String
 type Url = String
-type ScrapeInfoParser = String -> String
+type Scraper = String -> String
 
 {-
 - TODO
 - 1. Validate scrapeInfo
-- 2. Execute scrapeInfo
+- 2. Maybe execute scrapeInfo
 - 3. Return response
 -}
-scrape :: ScrapeInfo t -> ScrapeInfoParser -> IO (Either [Error] Response)
+scrape :: ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
 scrape = undefined
 
-scrapeAll :: [(ScrapeInfo t, ScrapeInfoParser)] -> IO [(Url, Either [Error] Response)]
-scrapeAll infos = let responses = T.sequence $ TU.uncurry scrape <$> infos --TODO maybe parallelize using parallel-io
+repeatScrape :: Domain.CronSchedule -> ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
+repeatScrape = undefined
+
+scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [Domain.ValidationError] (IO ()))]
+scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
-                  in (urls `zip`) <$> responses
+                  in urls `zip` responses

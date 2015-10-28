@@ -28,7 +28,7 @@ instance Eq (CallbackConfig t) where
   (MailConfig m1) == (MailConfig m2) = m1 == m2
 
 -- TODO add cron configuration
-data ScrapeInfo t = ScrapeInfo {
+data ScrapeConfig t = ScrapeConfig {
   _scrapeInfoUrl :: String
 , _scrapeInfoCallbackConfig :: CallbackConfig t
 } deriving (Show, Eq)
@@ -37,11 +37,14 @@ data ValidationError = UrlNotAbsolute
                      | UrlProtocolInvalid 
                      | MailConfigInvalidMailFromAddr String
                      | MailConfigInvalidMailToAddr String
+                     | CronScheduleInvalid String
                        deriving (Show, Eq)
 
 type ScrapeValidation t = AccValidation [ValidationError] t
 
+type CronSchedule = String
+
 makeLenses ''MailAddr
 makeLenses ''Mail
-makeLenses ''ScrapeInfo
+makeLenses ''ScrapeConfig
 makePrisms ''CallbackConfig

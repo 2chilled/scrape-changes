@@ -1,10 +1,11 @@
 module Network.ScrapeChanges.Internal (
   MailAddr(..)
 , Mail(..)
-, ScrapeInfo(..)
+, ScrapeConfig(..)
 , CallbackConfig(..)
-, defaultScrapeInfo
-, validateScrapeInfo
+, defaultScrapeConfig
+, validateScrapeConfig
+, validateCronSchedule
 , scrapeInfoUrl
 , scrapeInfoCallbackConfig
 , mailFrom
@@ -25,13 +26,16 @@ import qualified Network.URI as U
 import qualified Data.Foldable as F
 import Network.ScrapeChanges.Internal.Domain
 import qualified Data.ByteString.Lens as ByteStringLens
+import qualified Data.Text.Lens as TextLens
 import qualified Text.Email.Validate as EmailValidate
+import qualified Data.Attoparsec.Text as AttoparsecText
+import qualified System.Cron.Parser as CronParser
 
 invalidMailAddr :: MailAddr
 invalidMailAddr = MailAddr { _mailAddrName = Nothing, _mailAddr = "invalidmail" }
 
-defaultScrapeInfo :: ScrapeInfo t
-defaultScrapeInfo = ScrapeInfo {
+defaultScrapeConfig :: ScrapeConfig t
+defaultScrapeConfig = ScrapeConfig {
   _scrapeInfoUrl = ""
 , _scrapeInfoCallbackConfig = MailConfig defaultMail
 } where defaultMail :: Mail
@@ -42,8 +46,8 @@ defaultScrapeInfo = ScrapeInfo {
         , _mailBody = ""
         }
 
-validateScrapeInfo :: ScrapeInfo t -> ScrapeValidation (ScrapeInfo t)
-validateScrapeInfo si = 
+validateScrapeConfig :: ScrapeConfig t -> ScrapeValidation (ScrapeConfig t)
+validateScrapeConfig si = 
   let toUnit x = const () <$> x
       urlValidation = validateUrl $ si ^. scrapeInfoUrl
       callbackValidation = validateCallbackConfig $ si ^. scrapeInfoCallbackConfig
@@ -77,3 +81,11 @@ validateUrl s = let uriMaybe = U.parseAbsoluteURI s
                      if isAbsoluteUrl then ok else AccFailure [UrlNotAbsolute]
                    , if isHttp then ok else AccFailure [UrlProtocolInvalid]
                    ]
+
+validateCronSchedule :: CronSchedule -> ScrapeValidation CronSchedule
+validateCronSchedule c = 
+  let mapFailure = _Failure %~ \s -> [CronScheduleInvalid s]
+      setSuccess = _Success .~ c
+      either' = AttoparsecText.parseOnly CronParser.cronSchedule (c ^. TextLens.packed)
+      mappedEither' = mapFailure . setSuccess $ either'
+  in  mappedEither' ^. _AccValidation

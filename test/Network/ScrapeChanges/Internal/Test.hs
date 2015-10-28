@@ -17,6 +17,14 @@ import qualified Data.ByteString.Lens as ByteStringLens
 import qualified Data.Validation as V
 import qualified Text.Email.Validate as EmailValidate
 
+newtype NCronSchedule = NCronSchedule { nCronScheduleRun :: String } deriving Show
+
+instance Arbitrary NCronSchedule where 
+    arbitrary = NCronSchedule <$> oneof [pure correctCronSchedule, arbitrary]
+
+correctCronSchedule :: String
+correctCronSchedule = "*/2 * 3 * 4,5,6"
+
 emailAddressGen :: Gen String
 emailAddressGen = oneof [pure correctMailAddr, arbitrary]
 
@@ -31,13 +39,13 @@ instance Arbitrary (CallbackConfig ()) where
     where otherConfigGen = return $ OtherConfig (const $ return ())
           mailConfigGen = MailConfig <$> arbitrary
 
-instance Arbitrary (ScrapeInfo ()) where
+instance Arbitrary (ScrapeConfig ()) where
   arbitrary = do
     scrapeInfoUrl' <- arbitrary
     config' <- arbitrary
     let setUrl = scrapeInfoUrl .~ scrapeInfoUrl'
     let setConfig = scrapeInfoCallbackConfig .~ config'
-    return $ setUrl . setConfig $ SC.defaultScrapeInfo
+    return $ setUrl . setConfig $ SC.defaultScrapeConfig
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
@@ -51,42 +59,41 @@ correctMailAddr = "correct@mail.com"
 correctUrl :: String
 correctUrl = "http://www.google.de"
 
-correctMailScrapeInfo :: ScrapeInfo t
-correctMailScrapeInfo = let setUrl = scrapeInfoUrl .~ correctUrl
-                            setMail x = scrapeInfoCallbackConfig . _MailConfig . x .~ (tMailAddr :| [])
-                            setMailFrom = setMail mailFrom
-                            setMailTo = setMail mailTo 
-                        in setUrl . setMailFrom . setMailTo $ SC.defaultScrapeInfo
+correctMailScrapeConfig :: ScrapeConfig t
+correctMailScrapeConfig = let setUrl = scrapeInfoUrl .~ correctUrl
+                              setMail x = scrapeInfoCallbackConfig . _MailConfig . x .~ (tMailAddr :| [])
+                              setMailFrom = setMail mailFrom
+                              setMailTo = setMail mailTo 
+                          in setUrl . setMailFrom . setMailTo $ SC.defaultScrapeConfig
 
-correctOtherScrapeInfo :: ScrapeInfo ()
-correctOtherScrapeInfo = let setCallbackConfig = scrapeInfoCallbackConfig .~ OtherConfig (const $ return ())
-                         in setCallbackConfig SC.defaultScrapeInfo
+correctOtherScrapeConfig :: ScrapeConfig ()
+correctOtherScrapeConfig = let setCallbackConfig = scrapeInfoCallbackConfig .~ OtherConfig (const $ return ())
+                         in setCallbackConfig SC.defaultScrapeConfig
 
-validateScrapeInfoWithBadInfoUrlShouldNotValidate :: Assertion
-validateScrapeInfoWithBadInfoUrlShouldNotValidate = 
+validateScrapeConfigWithBadInfoUrlShouldNotValidate :: Assertion
+validateScrapeConfigWithBadInfoUrlShouldNotValidate = 
     let wrongUrl = "httpp://www.google.de"
-        scrapeInfo = scrapeInfoUrl .~ wrongUrl $ correctMailScrapeInfo 
-        result = SUT.validateScrapeInfo scrapeInfo
+        scrapeInfo = scrapeInfoUrl .~ wrongUrl $ correctMailScrapeConfig 
+        result = SUT.validateScrapeConfig scrapeInfo
     in  V.AccFailure [UrlProtocolInvalid] @=? result
 
-validateScrapeInfoShouldValidateOnValidInput :: Assertion
-validateScrapeInfoShouldValidateOnValidInput =
-    let scrapeInfo = SUT.scrapeInfoUrl .~ correctUrl $ correctMailScrapeInfo 
-        result = SUT.validateScrapeInfo scrapeInfo
+validateScrapeConfigShouldValidateOnValidInput :: Assertion
+validateScrapeConfigShouldValidateOnValidInput =
+    let scrapeInfo = SUT.scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig 
+        result = SUT.validateScrapeConfig scrapeInfo
     in  V.AccSuccess scrapeInfo @=? result
 
-validateScrapeInfoWithOtherConfigShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
-validateScrapeInfoWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _OtherConfig) ==>
-  let result = SUT.validateScrapeInfo si
+validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants :: ScrapeConfig () -> Property
+validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _OtherConfig) ==>
+  let result = SUT.validateScrapeConfig si
       p1 = property $ M.isJust (result ^? V._Success)
       badUrlErrorsOnly = (null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> (result ^? V._Failure)
       p2 = property $ False `M.fromMaybe` badUrlErrorsOnly
   in p1 .||. p2
   
-
-validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants :: ScrapeInfo () -> Property
-validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _MailConfig) ==>
-  let result = SUT.validateScrapeInfo si
+validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants :: ScrapeConfig () -> Property
+validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _MailConfig) ==>
+  let result = SUT.validateScrapeConfig si
       failure = result ^? V._Failure
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
       (Just mailConfig) = si ^? mailConfigLens
@@ -101,19 +108,30 @@ validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? 
       invalidMailToAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailToAddr <$> invalidMailToAddrs
   in property invalidMailFromAddrsProp .&&. property invalidMailToAddrsProp
 
+validateCronScheduleShouldSatisfyAllInvariants :: NCronSchedule -> Property
+validateCronScheduleShouldSatisfyAllInvariants c = 
+  let result = SUT.validateCronSchedule $ nCronScheduleRun c
+      isCorrect = nCronScheduleRun c /= correctCronSchedule
+                    || M.isJust (result ^? V._Success)
+      containsExpectedError = False `M.fromMaybe` ((CronScheduleInvalid "" `elem`) <$> (result ^? V._Failure))
+  in property isCorrect .||. property containsExpectedError
+
+
 tests :: [TF.Test]
 tests = 
   [
     testGroup "Network.ScrapeChanges.Internal"
     [
-      testCase "validateScrapeInfo with bad info url should not validate"
-        validateScrapeInfoWithBadInfoUrlShouldNotValidate
-    , testCase "validateScrapeInfo should validate on valid input"
-        validateScrapeInfoShouldValidateOnValidInput
-    , testProperty "validateScrapeInfo with mail config should satisfy all invariants"
-        validateScrapeInfoWithMailConfigShouldSatisfyAllInvariants
-    , testProperty "validateScrapeInfo with other config should satisfy all invariants"
-        validateScrapeInfoWithOtherConfigShouldSatisfyAllInvariants
+      testCase "validateScrapeConfig with bad info url should not validate"
+        validateScrapeConfigWithBadInfoUrlShouldNotValidate
+    , testCase "validateScrapeConfig should validate on valid input"
+        validateScrapeConfigShouldValidateOnValidInput
+    , testProperty "validateScrapeConfig with mail config should satisfy all invariants"
+        validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants
+    , testProperty "validateScrapeConfig with other config should satisfy all invariants"
+        validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants
+    , testProperty "validateCronSchedule should satisfy all invariants"
+        validateCronScheduleShouldSatisfyAllInvariants
     ]
   ]
 
