@@ -5,8 +5,8 @@ module Network.ScrapeChanges(
 , ScrapeConfig(..)
 , defaultScrapeConfig
 ) where
-import Network.ScrapeChanges.Internal
-import qualified Network.ScrapeChanges.Internal.Domain as Domain
+import Network.ScrapeChanges.Internal as Internal
+import Network.ScrapeChanges.Internal.Domain as Domain
 import qualified Data.Tuple as TU
 import Control.Lens
 
@@ -21,7 +21,7 @@ type Scraper = String -> String
 scrape :: ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
 scrape = undefined
 
-repeatScrape :: Domain.CronSchedule -> ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
+repeatScrape :: CronSchedule -> ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
 repeatScrape = undefined
 
 scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [Domain.ValidationError] (IO ()))]

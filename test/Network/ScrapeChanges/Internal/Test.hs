@@ -3,6 +3,7 @@
 module Network.ScrapeChanges.Internal.Test where
 import Prelude hiding (filter)
 import Network.ScrapeChanges.Internal as SUT
+import Network.ScrapeChanges.Internal.Domain as Domain
 import qualified Network.ScrapeChanges as SC
 import qualified Data.Maybe as M
 import qualified Data.List as L
@@ -79,7 +80,7 @@ validateScrapeConfigWithBadInfoUrlShouldNotValidate =
 
 validateScrapeConfigShouldValidateOnValidInput :: Assertion
 validateScrapeConfigShouldValidateOnValidInput =
-    let scrapeInfo = SUT.scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig 
+    let scrapeInfo = scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig 
         result = SUT.validateScrapeConfig scrapeInfo
     in  V.AccSuccess scrapeInfo @=? result
 

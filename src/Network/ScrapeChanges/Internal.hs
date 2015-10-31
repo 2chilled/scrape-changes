@@ -1,22 +1,7 @@
 module Network.ScrapeChanges.Internal (
-  MailAddr(..)
-, Mail(..)
-, ScrapeConfig(..)
-, CallbackConfig(..)
-, defaultScrapeConfig
+  defaultScrapeConfig
 , validateScrapeConfig
 , validateCronSchedule
-, scrapeInfoUrl
-, scrapeInfoCallbackConfig
-, mailFrom
-, mailTo
-, mailSubject
-, mailBody
-, mailAddrName
-, mailAddr
-, _MailConfig
-, _OtherConfig
-, ValidationError(..)
 ) where
 import Prelude hiding (filter)
 import Data.Validation
