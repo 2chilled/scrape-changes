@@ -18,7 +18,9 @@ type Scraper = String -> String
 {-
 - TODO
 - 1. Validate scrapeInfo
-- 2. Maybe execute scrapeInfo
+- 2. Make http request
+- 3. Hash http request and compare with latest hash
+- 4. If hashes differ, execute callback config
 -}
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape = undefined
