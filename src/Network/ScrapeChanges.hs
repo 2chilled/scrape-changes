@@ -7,7 +7,9 @@ module Network.ScrapeChanges(
 ) where
 import Network.ScrapeChanges.Internal as Internal
 import Network.ScrapeChanges.Internal.Domain as Domain
+import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
+import qualified System.Cron.Schedule as CronSchedule
 import Control.Lens
 
 type Url = String
@@ -18,13 +20,19 @@ type Scraper = String -> String
 - 1. Validate scrapeInfo
 - 2. Maybe execute scrapeInfo
 -}
-scrape :: ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
+scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape = undefined
 
-repeatScrape :: CronSchedule -> ScrapeConfig t -> Scraper -> Either [Domain.ValidationError] (IO ())
-repeatScrape = undefined
+repeatScrape :: CronSchedule -> ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
+repeatScrape cs sc s = 
+  let cronSchedule = validateCronSchedule cs
+      scrapeResult = scrape sc s ^. Validation._AccValidation
+      scrapeResultRepeated = const repeatScrape' <$> cronSchedule <*> scrapeResult
+  in scrapeResultRepeated ^. Validation._Either
+  where repeatScrape' :: IO () -> IO ()
+        repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
-scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [Domain.ValidationError] (IO ()))]
+scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [ValidationError] (IO ()))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
