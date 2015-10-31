@@ -19,6 +19,7 @@ import qualified System.Cron.Parser as CronParser
 invalidMailAddr :: MailAddr
 invalidMailAddr = MailAddr { _mailAddrName = Nothing, _mailAddr = "invalidmail" }
 
+-- TODO require scrapeInfoUrl, mailFrom, mailTo
 defaultScrapeConfig :: ScrapeConfig t
 defaultScrapeConfig = ScrapeConfig {
   _scrapeInfoUrl = ""
