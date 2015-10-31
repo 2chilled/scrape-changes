@@ -11,6 +11,7 @@ import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
 import qualified System.Cron.Schedule as CronSchedule
 import Control.Lens
+import qualified Network.Wreq as Http
 
 type Url = String
 type Scraper = String -> String
@@ -23,7 +24,8 @@ type Scraper = String -> String
 - 4. If hashes differ, execute callback config
 -}
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
-scrape = undefined
+scrape sc s = let sc' = validateScrapeConfig sc
+              in undefined
 
 repeatScrape :: CronSchedule -> ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
