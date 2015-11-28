@@ -3,6 +3,8 @@ module Network.ScrapeChanges.Internal.Domain where
 import Control.Lens
 import Data.Validation
 import Data.List.NonEmpty
+import Data.Hashable (Hashable, hashWithSalt)
+
 data MailAddr = MailAddr {
   _mailAddrName :: Maybe String
 , _mailAddr :: String
@@ -31,6 +33,9 @@ data ScrapeConfig t = ScrapeConfig {
   _scrapeInfoUrl :: String
 , _scrapeInfoCallbackConfig :: CallbackConfig t
 } deriving (Show, Eq)
+
+instance Hashable (ScrapeConfig t) where
+  hashWithSalt i c = hashWithSalt i (show c)
 
 data ValidationError = UrlNotAbsolute 
                      | UrlProtocolInvalid 

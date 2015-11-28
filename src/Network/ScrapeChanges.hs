@@ -11,6 +11,7 @@ import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
 import qualified System.Cron.Schedule as CronSchedule
 import Control.Lens
+import Control.Lens.Internal.ByteString 
 import qualified Network.Wreq as Http
 
 type Url = String
@@ -25,6 +26,11 @@ type Scraper = String -> String
 -}
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape sc s = let sc' = validateScrapeConfig sc
+                  unpackResponse = unpackLazy8 . (^. Http.responseBody)
+                  request = (s . unpackResponse <$>) . Http.get
+                  response = (\config -> request $ config ^. scrapeInfoUrl) <$> sc'
+                  hashedResponse = (fmap . fmap) hash response 
+                  latestHashedResponse = readLatestHash <$> sc'
               in undefined
 
 repeatScrape :: CronSchedule -> ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
