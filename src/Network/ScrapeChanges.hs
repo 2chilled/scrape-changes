@@ -25,13 +25,15 @@ type Scraper = String -> String
 - 4. If hashes differ, execute callback config
 -}
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
-scrape sc s = let sc' = validateScrapeConfig sc
-                  unpackResponse = unpackLazy8 . (^. Http.responseBody)
-                  request = (s . unpackResponse <$>) . Http.get
-                  response = (\config -> request $ config ^. scrapeInfoUrl) <$> sc'
-                  hashedResponse = (fmap . fmap) hash response 
-                  latestHashedResponse = readLatestHash <$> sc'
-              in undefined
+scrape sc s = let result = const scrapeOrchestration <$> (validateScrapeConfig sc)
+              in result ^. Validation._Either
+  where scrapeOrchestration = 
+          let unpackResponse = unpackLazy8 . (^. Http.responseBody)
+              request = (s . unpackResponse <$>) . Http.get
+              response = request $ sc ^. scrapeInfoUrl
+              hashedResponse = hash <$> response 
+              latestHashedResponse = readLatestHash sc
+          in undefined
 
 repeatScrape :: CronSchedule -> ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
