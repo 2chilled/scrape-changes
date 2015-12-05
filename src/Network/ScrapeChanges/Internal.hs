@@ -21,7 +21,9 @@ import qualified Data.Attoparsec.Text as AttoparsecText
 import qualified System.Cron.Parser as CronParser
 import qualified Data.Digest.CRC32 as CRC32
 import Control.Monad (void)
-import Data.Hashable (Hashable)
+import qualified Data.Hashable as Hashable
+import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 
 invalidMailAddr :: MailAddr
 invalidMailAddr = MailAddr { _mailAddrName = Nothing, _mailAddr = "invalidmail" }
@@ -88,8 +90,17 @@ hash s = let packedS = s ^. packedChars
              h = CRC32.crc32 packedS
          in show h 
 
-readLatestHash :: (Hashable t) => t -> IO String
-readLatestHash = undefined
+type Hash = String
 
-saveHash :: (Hashable t) => t -> IO ()
-saveHash = undefined
+hashPath :: Hash -> IO FilePath
+hashPath hash' = let buildHashPath p = p ++ (FilePath.pathSeparator : hash' ++ ".hash")
+                     hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
+                 in  hashPath' >>= readFile  
+
+readLatestHash :: (Hashable.Hashable t) => t -> IO Hash
+readLatestHash t = hashPath (show . Hashable.hash $ t) >>= readFile
+
+saveHash :: (Hashable.Hashable t) => t -> Hash -> IO ()
+saveHash t hash' = let hashOfT = (show . Hashable.hash $ t)
+                       hashPathForT = hashPath hashOfT
+                   in  hashPathForT >>= flip writeFile hash'
