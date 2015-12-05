@@ -10,10 +10,10 @@ maintainer:          matthias.mh.herrmann@googlemail.com
 category:            Network
 build-type:          Simple
 -- extra-source-files:  
-cabal-version:       >=1.10
+cabal-version:       >=1.14
 
 library
-  exposed-modules:     Network.ScrapeChanges
+  exposed-modules:     Network.ScrapeChanges 
   other-modules:       
   other-extensions:    
   build-depends:       base >=4.8 && <4.9
@@ -34,27 +34,27 @@ library
 
 test-suite scrapechanges-tests
   type:              exitcode-stdio-1.0
-  other-modules:     Network.ScrapeChanges.Internal.Test
   hs-source-dirs:    test src
   main-is:           TestMain.hs
   build-depends:     base >=4.8 && <4.9
-                   , validation >=0.5.1 && < 0.6 
-                   , QuickCheck >= 2.0
-                   , test-framework
-                   , test-framework-quickcheck2
-                   , test-framework-hunit
-                   , HUnit
-                   , scrape-changes
-                   , lens
-                   , validation
+                   , QuickCheck >=2.0
+                   , test-framework >=0.1.0
+                   , test-framework-quickcheck2 >=0.3.0.3
+                   , test-framework-hunit >= 0.3.0.2
+                   , HUnit >= 1.2.5.2
+                   -- !! copied from the library build-depends
+                   -- This way we don't have to expose internal modules
+                   , validation >=0.5.1 && < 0.6
+                   , lens >=4.12 && <4.14
+                    --,mime-mail >= 0.4 && < 0.5
                    , network-uri >=2.6.0.3 && < 2.6.1
                    , email-validate >= 2.0 && < 2.2
                    , semigroups >= 0.16 && < 0.18
                    , cron >= 0.3.2
                    , attoparsec >= 0.13.0
+                   , wreq >= 0.4.0.0
                    , digest >= 0.0.1.2
                    , hashable >= 1.2.3.3
-                   , wreq >= 0.4.0.0
   default-language:  Haskell2010
 
 source-repository head
