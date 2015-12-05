@@ -24,6 +24,7 @@ import Control.Monad (void)
 import qualified Data.Hashable as Hashable
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 
 invalidMailAddr :: MailAddr
 invalidMailAddr = MailAddr { _mailAddrName = Nothing, _mailAddr = "invalidmail" }
@@ -85,7 +86,7 @@ validateCronSchedule c =
       mappedEither' = mapFailure . setSuccess $ either'
   in  mappedEither' ^. _AccValidation
 
-hash :: String -> String
+hash :: String -> Hash
 hash s = let packedS = s ^. packedChars
              h = CRC32.crc32 packedS
          in show h 
@@ -93,7 +94,8 @@ hash s = let packedS = s ^. packedChars
 type Hash = String
 
 hashPath :: Hash -> IO FilePath
-hashPath hash' = let buildHashPath p = p ++ (FilePath.pathSeparator : hash' ++ ".hash")
+hashPath hash' = let fileName = FilePath.pathSeparator : hash' ++ ".hash"
+                     buildHashPath p = p </> fileName
                      hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
                  in  hashPath' >>= readFile  
 
