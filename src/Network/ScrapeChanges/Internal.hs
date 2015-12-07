@@ -5,6 +5,7 @@ module Network.ScrapeChanges.Internal (
 , hash
 , readLatestHash
 , saveHash
+, executeCallbackConfig
 ) where
 import Prelude hiding (filter)
 import Data.Validation
@@ -106,3 +107,7 @@ saveHash :: (Hashable.Hashable t) => t -> Hash -> IO ()
 saveHash t hash' = let hashOfT = (show . Hashable.hash $ t)
                        hashPathForT = hashPath hashOfT
                    in  hashPathForT >>= flip writeFile hash'
+
+executeCallbackConfig :: CallbackConfig t -> String -> IO t
+executeCallbackConfig (MailConfig _) _ = undefined
+executeCallbackConfig (OtherConfig f) s = f s
