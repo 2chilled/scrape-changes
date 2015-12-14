@@ -26,7 +26,7 @@ type Scraper = String -> String
 - 3. Hash http request and compare with latest hash
 - 4. If hashes differ, execute callback config
 -}
-scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO t)
+scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
@@ -51,7 +51,7 @@ repeatScrape cs sc s =
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
-scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [ValidationError] (IO t))]
+scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [ValidationError] (IO ()))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses

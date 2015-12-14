@@ -11,12 +11,14 @@ data MailAddr = MailAddr {
 } deriving (Show, Eq)
 
 data Mail = Mail {
+  -- TODO should be single value
   _mailFrom :: NonEmpty MailAddr
 , _mailTo :: NonEmpty MailAddr
 , _mailSubject :: String
 , _mailBody :: String
 } deriving (Show, Eq)
 
+-- TODO probably we can remove the type variable
 data CallbackConfig t = MailConfig Mail | OtherConfig (String -> IO t)
 
 instance Show (CallbackConfig t) where

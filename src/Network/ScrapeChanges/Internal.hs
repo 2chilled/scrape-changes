@@ -9,8 +9,9 @@ module Network.ScrapeChanges.Internal (
 ) where
 import Prelude hiding (filter)
 import Data.Validation
-import Data.List.NonEmpty
+import Data.List.NonEmpty hiding (head, tail)
 import Data.ByteString.Strict.Lens
+import Data.Functor (($>))
 import Control.Lens
 import qualified Network.URI as U
 import qualified Data.Foldable as F
@@ -25,6 +26,7 @@ import Control.Monad (void)
 import qualified Data.Hashable as Hashable
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
+import qualified Network.Mail.Mime as Mime
 import System.FilePath ((</>))
 
 invalidMailAddr :: MailAddr
@@ -108,6 +110,23 @@ saveHash t hash' = let hashOfT = (show . Hashable.hash $ t)
                        hashPathForT = hashPath hashOfT
                    in  hashPathForT >>= flip writeFile hash'
 
-executeCallbackConfig :: CallbackConfig t -> String -> IO t
-executeCallbackConfig (MailConfig _) _ = undefined
-executeCallbackConfig (OtherConfig f) s = f s
+executeCallbackConfig :: CallbackConfig t -> String -> IO ()
+executeCallbackConfig (MailConfig m) result = let m' = set mailBody result m
+                                                  mimeMail = toMimeMail m'
+                                              in Mime.renderSendMail mimeMail
+executeCallbackConfig (OtherConfig f) result = f result $> ()
+
+toMimeMail :: Mail -> Mime.Mail
+toMimeMail m = let toMimeAddress' ms = toList $ toMimeAddress <$> ms
+                   mailToMime = toMimeAddress' $ m ^. mailTo
+                   mailFromMime = toMimeAddress' $ m ^. mailFrom
+                   mailSubjectMime = m ^. mailSubject . TextLens.packed
+                   mailBodyMime = m ^. mailBody . TextLens.packed
+                   mimeMail = Mime.simpleMail' (head mailToMime) (head mailFromMime) mailSubjectMime mailBodyMime
+               in mimeMail { Mime.mailTo = Mime.mailTo mimeMail ++ tail mailToMime }
+
+toMimeAddress :: MailAddr -> Mime.Address
+toMimeAddress a = Mime.Address {
+  Mime.addressName = a ^? mailAddrName . _Just . TextLens.packed
+, Mime.addressEmail = a ^. mailAddr . TextLens.packed
+}

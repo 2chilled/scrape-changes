@@ -19,7 +19,7 @@ library
   build-depends:       base >=4.8 && <4.9
                      , validation >=0.5.1 && < 0.6
                      , lens >=4.12 && <4.14
-                      --,mime-mail >= 0.4 && < 0.5
+                     , mime-mail >= 0.4 && < 0.5
                      , network-uri >=2.6.0.3 && < 2.6.1
                      , email-validate >= 2.0 && < 2.2
                      , semigroups >= 0.16 && < 0.18
@@ -49,7 +49,7 @@ test-suite scrapechanges-tests
                    -- This way we don't have to expose internal modules
                    , validation >=0.5.1 && < 0.6
                    , lens >=4.12 && <4.14
-                    --,mime-mail >= 0.4 && < 0.5
+                   , mime-mail >= 0.4 && < 0.5
                    , network-uri >=2.6.0.3 && < 2.6.1
                    , email-validate >= 2.0 && < 2.2
                    , semigroups >= 0.16 && < 0.18
