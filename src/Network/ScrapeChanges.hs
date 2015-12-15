@@ -19,13 +19,6 @@ import qualified Control.Concurrent.Async as Async
 type Url = String
 type Scraper = String -> String
 
-{-
-- TODO
-- 1. Validate scrapeInfo
-- 2. Make http request
-- 3. Hash http request and compare with latest hash
-- 4. If hashes differ, execute callback config
--}
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either

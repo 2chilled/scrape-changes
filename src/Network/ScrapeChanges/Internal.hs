@@ -39,7 +39,7 @@ defaultScrapeConfig = ScrapeConfig {
 , _scrapeInfoCallbackConfig = MailConfig defaultMail
 } where defaultMail :: Mail
         defaultMail = Mail {
-          _mailFrom =  invalidMailAddr :| []
+          _mailFrom = invalidMailAddr
         , _mailTo = invalidMailAddr :| []
         , _mailSubject = ""
         , _mailBody = ""
@@ -56,8 +56,8 @@ validateMailConfig :: Mail -> ScrapeValidation Mail
 validateMailConfig m = 
   let mailAddrs t = fromList $ m ^.. (t . traverse . mailAddr)
       isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
-      mailFromAddrs = mailAddrs mailFrom
-      invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> (isInvalidMailAddr `filter` mailFromAddrs)
+      mailFromAddr = m ^. mailFrom . mailAddr
+      invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> [mailFromAddr | isInvalidMailAddr mailFromAddr]
       mailToAddrs = mailAddrs mailTo
       invalidMailToAddrs = MailConfigInvalidMailToAddr <$> (isInvalidMailAddr `filter` mailToAddrs)
       ok = pure m
@@ -119,10 +119,10 @@ executeCallbackConfig (OtherConfig f) result = f result $> ()
 toMimeMail :: Mail -> Mime.Mail
 toMimeMail m = let toMimeAddress' ms = toList $ toMimeAddress <$> ms
                    mailToMime = toMimeAddress' $ m ^. mailTo
-                   mailFromMime = toMimeAddress' $ m ^. mailFrom
+                   mailFromMime = toMimeAddress $ m ^. mailFrom
                    mailSubjectMime = m ^. mailSubject . TextLens.packed
                    mailBodyMime = m ^. mailBody . TextLens.packed
-                   mimeMail = Mime.simpleMail' (head mailToMime) (head mailFromMime) mailSubjectMime mailBodyMime
+                   mimeMail = Mime.simpleMail' (head mailToMime) mailFromMime mailSubjectMime mailBodyMime
                in mimeMail { Mime.mailTo = Mime.mailTo mimeMail ++ tail mailToMime }
 
 toMimeAddress :: MailAddr -> Mime.Address

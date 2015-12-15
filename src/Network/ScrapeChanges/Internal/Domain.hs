@@ -11,8 +11,7 @@ data MailAddr = MailAddr {
 } deriving (Show, Eq)
 
 data Mail = Mail {
-  -- TODO should be single value
-  _mailFrom :: NonEmpty MailAddr
+  _mailFrom :: MailAddr
 , _mailTo :: NonEmpty MailAddr
 , _mailSubject :: String
 , _mailBody :: String

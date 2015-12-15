@@ -62,9 +62,9 @@ correctUrl = "http://www.google.de"
 
 correctMailScrapeConfig :: ScrapeConfig t
 correctMailScrapeConfig = let setUrl = scrapeInfoUrl .~ correctUrl
-                              setMail x = scrapeInfoCallbackConfig . _MailConfig . x .~ (tMailAddr :| [])
-                              setMailFrom = setMail mailFrom
-                              setMailTo = setMail mailTo 
+                              setMail mailLens value = scrapeInfoCallbackConfig . _MailConfig . mailLens .~ value
+                              setMailFrom = setMail mailFrom tMailAddr 
+                              setMailTo = setMail mailTo (tMailAddr :| [])
                           in setUrl . setMailFrom . setMailTo $ SC.defaultScrapeConfig
 
 correctOtherScrapeConfig :: ScrapeConfig ()
@@ -98,14 +98,13 @@ validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^
       failure = result ^? V._Failure
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
       (Just mailConfig) = si ^? mailConfigLens
-      invalidMailAddrs t = let mailAddrs = mailConfig ^.. (t . traverse . mailAddr)
-                               f = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
-                           in f `L.filter` mailAddrs
+      invalidMailAddr = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
       invalidMailAddrsProp es = let expected = (\errors' -> (`elem` errors') `L.all` es) <$> failure 
                                 in True `M.fromMaybe` expected
-      invalidMailFromAddrs = invalidMailAddrs mailFrom
-      invalidMailFromAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailFromAddr <$> invalidMailFromAddrs
-      invalidMailToAddrs = invalidMailAddrs mailTo
+      mailFromAddr = mailConfig ^. mailFrom . mailAddr
+      mailToAddrs = mailConfig ^.. mailTo . traverse . mailAddr
+      invalidMailFromAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailFromAddr <$> [mailFromAddr | invalidMailAddr mailFromAddr]
+      invalidMailToAddrs = invalidMailAddr `L.filter` mailToAddrs
       invalidMailToAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailToAddr <$> invalidMailToAddrs
   in property invalidMailFromAddrsProp .&&. property invalidMailToAddrsProp
 
