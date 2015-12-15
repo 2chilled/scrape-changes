@@ -33,7 +33,8 @@ type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
 type MailToAddr = MailAddr
 
--- TODO require scrapeInfoUrl, mailFrom, mailTo
+--TODO default constructor for other scrape config
+
 mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig t
 mailScrapeConfig siu mfa mtads = ScrapeConfig {
   _scrapeInfoUrl = siu

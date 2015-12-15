@@ -19,6 +19,7 @@ import qualified Control.Concurrent.Async as Async
 type Url = String
 type Scraper = String -> String
 
+--TODO add simple logging
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either
