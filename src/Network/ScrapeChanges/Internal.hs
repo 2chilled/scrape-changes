@@ -1,5 +1,5 @@
 module Network.ScrapeChanges.Internal (
-  defaultScrapeConfig
+  mailScrapeConfig
 , validateScrapeConfig
 , validateCronSchedule
 , hash
@@ -29,18 +29,19 @@ import qualified System.FilePath as FilePath
 import qualified Network.Mail.Mime as Mime
 import System.FilePath ((</>))
 
-invalidMailAddr :: MailAddr
-invalidMailAddr = MailAddr { _mailAddrName = Nothing, _mailAddr = "invalidmail" }
+type ScrapeInfoUrl = String
+type MailFromAddr = MailAddr
+type MailToAddr = MailAddr
 
 -- TODO require scrapeInfoUrl, mailFrom, mailTo
-defaultScrapeConfig :: ScrapeConfig t
-defaultScrapeConfig = ScrapeConfig {
-  _scrapeInfoUrl = ""
+mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig t
+mailScrapeConfig siu mfa mtads = ScrapeConfig {
+  _scrapeInfoUrl = siu
 , _scrapeInfoCallbackConfig = MailConfig defaultMail
 } where defaultMail :: Mail
         defaultMail = Mail {
-          _mailFrom = invalidMailAddr
-        , _mailTo = invalidMailAddr :| []
+          _mailFrom = mfa
+        , _mailTo = mtads
         , _mailSubject = ""
         , _mailBody = ""
         }

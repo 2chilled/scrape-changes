@@ -3,7 +3,7 @@ module Network.ScrapeChanges(
 , repeatScrape
 , scrapeAll
 , ScrapeConfig(..)
-, defaultScrapeConfig
+, mailScrapeConfig
 ) where
 import Network.ScrapeChanges.Internal as Internal
 import Network.ScrapeChanges.Internal.Domain as Domain

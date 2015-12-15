@@ -41,12 +41,10 @@ instance Arbitrary (CallbackConfig ()) where
           mailConfigGen = MailConfig <$> arbitrary
 
 instance Arbitrary (ScrapeConfig ()) where
-  arbitrary = do
-    scrapeInfoUrl' <- arbitrary
-    config' <- arbitrary
-    let setUrl = scrapeInfoUrl .~ scrapeInfoUrl'
-    let setConfig = scrapeInfoCallbackConfig .~ config'
-    return $ setUrl . setConfig $ SC.defaultScrapeConfig
+  arbitrary = helper <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+    where helper scrapeInfoUrl' config' mailFromAddr mailToAddrs = 
+            let setConfig = scrapeInfoCallbackConfig .~ config'
+            in setConfig $ SC.mailScrapeConfig scrapeInfoUrl' mailFromAddr mailToAddrs
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
@@ -61,15 +59,11 @@ correctUrl :: String
 correctUrl = "http://www.google.de"
 
 correctMailScrapeConfig :: ScrapeConfig t
-correctMailScrapeConfig = let setUrl = scrapeInfoUrl .~ correctUrl
-                              setMail mailLens value = scrapeInfoCallbackConfig . _MailConfig . mailLens .~ value
-                              setMailFrom = setMail mailFrom tMailAddr 
-                              setMailTo = setMail mailTo (tMailAddr :| [])
-                          in setUrl . setMailFrom . setMailTo $ SC.defaultScrapeConfig
+correctMailScrapeConfig = SC.mailScrapeConfig correctUrl tMailAddr (tMailAddr :| [])
 
 correctOtherScrapeConfig :: ScrapeConfig ()
 correctOtherScrapeConfig = let setCallbackConfig = scrapeInfoCallbackConfig .~ OtherConfig (const $ return ())
-                         in setCallbackConfig SC.defaultScrapeConfig
+                           in setCallbackConfig correctMailScrapeConfig
 
 validateScrapeConfigWithBadInfoUrlShouldNotValidate :: Assertion
 validateScrapeConfigWithBadInfoUrlShouldNotValidate = 
