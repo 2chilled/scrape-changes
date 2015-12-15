@@ -17,6 +17,7 @@ import Control.Monad
 import qualified Control.Concurrent.Async as Async
 
 type Url = String
+--TODO Use Data.ByteString.Lazy and not Strings for RAM safety
 type Scraper = String -> String
 
 --TODO add simple logging
@@ -45,6 +46,7 @@ repeatScrape cs sc s =
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
+--TODO validate unique urls in scrape config
 scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [ValidationError] (IO ()))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
