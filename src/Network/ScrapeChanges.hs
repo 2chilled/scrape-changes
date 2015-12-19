@@ -11,21 +11,20 @@ import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
 import qualified System.Cron.Schedule as CronSchedule
 import Control.Lens
-import Control.Lens.Internal.ByteString 
+import qualified Data.ByteString.Lazy.Internal as ByteString
 import qualified Network.Wreq as Http
 import Control.Monad
 import qualified Control.Concurrent.Async as Async
 
 type Url = String
---TODO Use Data.ByteString.Lazy and not Strings for RAM safety
-type Scraper = String -> String
+type Scraper = ByteString.ByteString -> String
 
 --TODO add simple logging
 scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
-          let unpackResponse = unpackLazy8 . (^. Http.responseBody)
+          let unpackResponse = (^. Http.responseBody)
               request = (s . unpackResponse <$>) . Http.get
               response = request $ sc ^. scrapeInfoUrl
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
