@@ -18,7 +18,7 @@ data Mail = Mail {
 } deriving (Show, Eq)
 
 -- TODO probably we can remove the type variable
-data CallbackConfig t = MailConfig Mail | OtherConfig (String -> IO t)
+data CallbackConfig t = MailConfig Mail | OtherConfig (t -> IO t)
 
 instance Show (CallbackConfig t) where
   show (MailConfig mail) = "MailConfig (" ++ show mail ++ ")"

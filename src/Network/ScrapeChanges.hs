@@ -19,9 +19,11 @@ import qualified System.Log.Logger as Log
 import qualified System.Log.Handler.Syslog as Syslog
 
 type Url = String
-type Scraper = ByteString.ByteString -> String
+type Scraper t = ByteString.ByteString -> t
 
-scrape :: ScrapeConfig t -> Scraper -> Either [ValidationError] (IO ())
+-- TODO think about if Show is really the right constraint. Maybe we should
+-- just require Hashable and remove our own hash function
+scrape :: Show t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
@@ -41,7 +43,7 @@ scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
                 (_, t) <- Async.concurrently saveHashIfSomethingHasChanged executeCallbackConfig'
                 return t
 
-repeatScrape :: CronSchedule -> ScrapeConfig () -> Scraper -> Either [ValidationError] (IO ())
+repeatScrape :: Show t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
   let cronSchedule = validateCronSchedule cs
       scrapeResult = scrape sc s ^. Validation._AccValidation
@@ -50,8 +52,7 @@ repeatScrape cs sc s =
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
---TODO validate unique urls in scrape config
-scrapeAll :: [(ScrapeConfig t, Scraper)] -> [(Url, Either [ValidationError] (IO ()))]
+scrapeAll :: Show t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO ()))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses

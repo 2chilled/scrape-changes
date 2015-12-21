@@ -91,8 +91,8 @@ validateCronSchedule c =
       mappedEither' = mapFailure . setSuccess $ either'
   in  mappedEither' ^. _AccValidation
 
-hash :: String -> Hash
-hash s = let packedS = s ^. packedChars
+hash :: Show t => t -> Hash
+hash s = let packedS = show s ^. packedChars
              h = CRC32.crc32 packedS
          in show h 
 
@@ -112,8 +112,8 @@ saveHash t hash' = let hashOfT = (show . Hashable.hash $ t)
                        hashPathForT = hashPath hashOfT
                    in  hashPathForT >>= flip writeFile hash'
 
-executeCallbackConfig :: CallbackConfig t -> String -> IO ()
-executeCallbackConfig (MailConfig m) result = let m' = set mailBody result m
+executeCallbackConfig :: Show t => CallbackConfig t -> t -> IO ()
+executeCallbackConfig (MailConfig m) result = let m' = set mailBody (show result) m
                                                   mimeMail = toMimeMail m'
                                               in Mime.renderSendMail mimeMail
 executeCallbackConfig (OtherConfig f) result = f result $> ()
