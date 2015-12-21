@@ -17,6 +17,7 @@ import Control.Lens
 import qualified Data.ByteString.Lens as ByteStringLens
 import qualified Data.Validation as V
 import qualified Text.Email.Validate as EmailValidate
+import qualified Data.Hashable as Hashable
 
 newtype NCronSchedule = NCronSchedule { nCronScheduleRun :: String } deriving Show
 
@@ -110,6 +111,20 @@ validateCronScheduleShouldSatisfyAllInvariants c =
       containsExpectedError = False `M.fromMaybe` ((CronScheduleInvalid "" `elem`) <$> (result ^? V._Failure))
   in property isCorrect .||. property containsExpectedError
 
+differentScrapeConfigsShouldYieldToDifferentHashes :: ScrapeConfig () -> ScrapeConfig () -> Property
+differentScrapeConfigsShouldYieldToDifferentHashes c1 c2 = 
+  let isOtherConfig = M.isJust . (^? scrapeInfoCallbackConfig . _OtherConfig)
+  in not (isOtherConfig c1 && isOtherConfig c2) ==> 
+    let hashedC1 = Hashable.hash c1
+        hashedC2 = Hashable.hash c2
+        correspondenceBetweenEqualsAndHashable = 
+          label "correspondenceBetweenEqualsAndHashable" $ if c1 == c2 then hashedC1 == hashedC2
+                                                                       else hashedC1 /= hashedC2
+        differentMailConfigAttribute = let setMailSubject = set $ scrapeInfoCallbackConfig . _MailConfig . mailSubject
+                                           c1' = setMailSubject "sub1" c1
+                                           c2' = setMailSubject "sub2" c2
+                                       in label "differentMailConfigAttribute" $ c1' /= c2'
+    in correspondenceBetweenEqualsAndHashable .&&. differentMailConfigAttribute
 
 tests :: [TF.Test]
 tests = 
@@ -126,6 +141,8 @@ tests =
         validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants
     , testProperty "validateCronSchedule should satisfy all invariants"
         validateCronScheduleShouldSatisfyAllInvariants
+    , testProperty "Different ScrapeConfig's should yield to different hashes"
+        differentScrapeConfigsShouldYieldToDifferentHashes
     ]
   ]
 
