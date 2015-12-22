@@ -16,13 +16,18 @@ import qualified Network.Wreq as Http
 import Control.Monad (when)
 import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
+import Data.Hashable (Hashable)
+import qualified Data.Hashable as Hashable
 
 type Url = String
 type Scraper t = ByteString.ByteString -> t
 
--- TODO think about if Show is really the right constraint. Maybe we should
--- just require Hashable and remove our own hash function
-scrape :: Show t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+-- TODO 
+-- add a function for cleaning up the written hashes
+-- return t instead of ()
+-- review the hash functions
+
+scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
@@ -32,7 +37,7 @@ scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               request = ((s . unpackResponse <$>) . Http.get) 
               response = request urlToRequest <* requestLog
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
-                let currentHashedResponse = hash response'
+                let currentHashedResponse = show . Hashable.hash $ response'
                 let hashesAreDifferent = latestHashedResponse /= currentHashedResponse
                 let saveHashIfSomethingHasChanged = let saveHashLog = Log.infoM thisModule $ "Saved new hash for url '" ++ urlToRequest ++ "'"
                                                         saveHash' = saveHash sc latestHashedResponse <* saveHashLog
@@ -41,7 +46,7 @@ scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
                 (_, t) <- Async.concurrently saveHashIfSomethingHasChanged executeCallbackConfig'
                 return t
 
-repeatScrape :: Show t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+repeatScrape :: Hashable t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
   let cronSchedule = validateCronSchedule cs
       scrapeResult = scrape sc s ^. Validation._AccValidation
@@ -50,7 +55,7 @@ repeatScrape cs sc s =
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
-scrapeAll :: Show t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO ()))]
+scrapeAll :: Hashable t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO ()))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses

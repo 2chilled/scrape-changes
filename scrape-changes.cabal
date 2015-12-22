@@ -26,7 +26,6 @@ library
                      , cron >= 0.3.2
                      , attoparsec >= 0.13.0
                      , wreq >= 0.4.0.0
-                     , digest >= 0.0.1.2
                      , hashable >= 1.2.3.3
                      , directory >= 1.2.2.0
                      , filepath >= 1.4.0.0
@@ -58,7 +57,6 @@ test-suite scrapechanges-tests
                    , cron >= 0.3.2
                    , attoparsec >= 0.13.0
                    , wreq >= 0.4.0.0
-                   , digest >= 0.0.1.2
                    , hashable >= 1.2.3.3
                    , directory >= 1.2.2.0
                    , filepath >= 1.4.0.0

@@ -2,7 +2,6 @@ module Network.ScrapeChanges.Internal (
   mailScrapeConfig
 , validateScrapeConfig
 , validateCronSchedule
-, hash
 , readLatestHash
 , saveHash
 , executeCallbackConfig
@@ -10,7 +9,6 @@ module Network.ScrapeChanges.Internal (
 import Prelude hiding (filter)
 import Data.Validation
 import Data.List.NonEmpty hiding (head, tail)
-import Data.ByteString.Strict.Lens
 import Data.Functor (($>))
 import Control.Lens
 import qualified Network.URI as U
@@ -21,9 +19,9 @@ import qualified Data.Text.Lens as TextLens
 import qualified Text.Email.Validate as EmailValidate
 import qualified Data.Attoparsec.Text as AttoparsecText
 import qualified System.Cron.Parser as CronParser
-import qualified Data.Digest.CRC32 as CRC32
 import Control.Monad (void)
 import qualified Data.Hashable as Hashable
+import Data.Hashable (Hashable)
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import qualified Network.Mail.Mime as Mime
@@ -91,11 +89,6 @@ validateCronSchedule c =
       mappedEither' = mapFailure . setSuccess $ either'
   in  mappedEither' ^. _AccValidation
 
-hash :: Show t => t -> Hash
-hash s = let packedS = show s ^. packedChars
-             h = CRC32.crc32 packedS
-         in show h 
-
 type Hash = String
 
 hashPath :: Hash -> IO FilePath
@@ -104,16 +97,16 @@ hashPath hash' = let fileName = FilePath.pathSeparator : hash' ++ ".hash"
                      hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
                  in  hashPath' >>= readFile  
 
-readLatestHash :: (Hashable.Hashable t) => t -> IO Hash
+readLatestHash :: (Hashable t) => t -> IO Hash
 readLatestHash t = hashPath (show . Hashable.hash $ t) >>= readFile
 
-saveHash :: (Hashable.Hashable t) => t -> Hash -> IO ()
+saveHash :: (Hashable t) => t -> Hash -> IO ()
 saveHash t hash' = let hashOfT = (show . Hashable.hash $ t)
                        hashPathForT = hashPath hashOfT
                    in  hashPathForT >>= flip writeFile hash'
 
-executeCallbackConfig :: Show t => CallbackConfig t -> t -> IO ()
-executeCallbackConfig (MailConfig m) result = let m' = set mailBody (show result) m
+executeCallbackConfig :: Hashable t => CallbackConfig t -> t -> IO ()
+executeCallbackConfig (MailConfig m) result = let m' = set mailBody (show . Hashable.hash $ result) m
                                                   mimeMail = toMimeMail m'
                                               in Mime.renderSendMail mimeMail
 executeCallbackConfig (OtherConfig f) result = f result $> ()
