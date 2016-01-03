@@ -4,8 +4,10 @@ module Network.ScrapeChanges(
 , scrapeAll
 , ScrapeConfig(..)
 , mailScrapeConfig
-, removeHash
+, otherScrapeConfig
+, clearScrapeConfig
 ) where
+
 import Network.ScrapeChanges.Internal as Internal
 import Network.ScrapeChanges.Internal.Domain as Domain
 import qualified Data.Validation as Validation
@@ -57,6 +59,9 @@ scrapeAll infos = let responses = TU.uncurry scrape <$> infos
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
 -- private 
+
+clearScrapeConfig :: (Hashable t) => ScrapeConfig t -> IO ()
+clearScrapeConfig = removeHash
 
 thisModule :: String
 thisModule = "Network.ScrapeChanges"
