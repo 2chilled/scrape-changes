@@ -36,6 +36,8 @@ type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
 type MailToAddr = MailAddr
 
+-- |Helper constructor for 'ScrapeConfig t' containing 'MailConfig'
+-- callback.
 mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig t
 mailScrapeConfig siu mfa mtads = ScrapeConfig {
   _scrapeInfoUrl = siu
@@ -48,6 +50,8 @@ mailScrapeConfig siu mfa mtads = ScrapeConfig {
         , _mailBody = ""
         }
 
+-- |Helper constructor for 'ScrapeConfig t' containing 'OtherConfig'
+-- callback.
 otherScrapeConfig :: ScrapeInfoUrl -> (t -> IO t) -> ScrapeConfig t
 otherScrapeConfig url f = ScrapeConfig {
   _scrapeInfoUrl = url

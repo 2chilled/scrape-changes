@@ -21,10 +21,20 @@ import qualified System.Log.Logger as Log
 import Data.Hashable (Hashable)
 
 type Url = String
-type Scraper t = ByteString.ByteString -> t
-
+type HttpBody = ByteString.ByteString
+type Scraper t = HttpBody -> t
 data ScrapeResult t = CallbackCalled t | CallbackNotCalled t
 
+-- |The basic scrape function. It fires a GET request against the url
+-- defined within the provided 'ScrapeConfig t'. The body is passed to the
+-- provided 'Scraper t'. The result 't' of the latter is used to determine
+-- whether something has changed on the respective website. If so,
+-- the callback configured in 'ScrapeConfig t' is executed and 
+-- 'CallbackCalled t' is returned. Otherwise 'CallbackNotCalled t' is returned.
+--
+-- Note that you should call 'clearScrapeConfig' after executing the
+-- returned IO action with the same 'ScrapeConfig t' you provided to this
+-- function. This will clear all mutable state used by 'scrape'.
 scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
 scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               in result ^. Validation._Either
@@ -44,6 +54,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
                 if hashesAreDifferent then CallbackCalled response' <$ saveHashAndExecuteCallbackConfig 
                                       else pure $ CallbackNotCalled response'
 
+-- |Repeat executing 'scrape' by providing a CronSchedule
 repeatScrape :: Hashable t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
   let cronSchedule = validateCronSchedule cs
@@ -54,14 +65,18 @@ repeatScrape cs sc s =
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
+-- |Execute a list of 'ScrapeConfig t' in sequence using 'scrape' and collect
+-- the results in a map containing the respective 'Url' as key.
 scrapeAll :: Hashable t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
--- private 
 
+-- |Clear all mutable state associated with the provided 'ScrapeConfig t'
 clearScrapeConfig :: (Hashable t) => ScrapeConfig t -> IO ()
 clearScrapeConfig = removeHash
+
+-- private 
 
 thisModule :: String
 thisModule = "Network.ScrapeChanges"

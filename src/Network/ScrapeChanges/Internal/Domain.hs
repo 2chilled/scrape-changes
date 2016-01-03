@@ -17,7 +17,14 @@ data Mail = Mail {
 , _mailBody :: String
 } deriving (Show, Eq)
 
-data CallbackConfig t = MailConfig Mail | OtherConfig (t -> IO t)
+data CallbackConfig t 
+    -- |Send a mail when there's changed data at your scrape target.
+    -- This needs sendmail to be configured correctly on the host your
+    -- program runs. 
+    = MailConfig Mail 
+    -- |Just execute the provided function when there's changed data at
+    -- your scrape target.
+    | OtherConfig (t -> IO t)
 
 instance Show (CallbackConfig t) where
   show (MailConfig mail) = "MailConfig (" ++ show mail ++ ")"
@@ -30,7 +37,10 @@ instance Eq (CallbackConfig t) where
   (MailConfig m1) == (MailConfig m2) = m1 == m2
 
 data ScrapeConfig t = ScrapeConfig {
+  -- |The url to be called using GET
   _scrapeInfoUrl :: String
+  -- |The callback config to be executed when something in '_scrapeInfoUrl'
+  -- has changed
 , _scrapeInfoCallbackConfig :: CallbackConfig t
 } deriving (Show, Eq)
 
@@ -46,6 +56,7 @@ data ValidationError = UrlNotAbsolute
 
 type ScrapeValidation t = AccValidation [ValidationError] t
 
+-- |String encoded in the standard cron format
 type CronSchedule = String
 
 makeLenses ''MailAddr
