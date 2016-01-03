@@ -4,6 +4,7 @@ module Network.ScrapeChanges(
 , scrapeAll
 , ScrapeConfig(..)
 , mailScrapeConfig
+, removeHash
 ) where
 import Network.ScrapeChanges.Internal as Internal
 import Network.ScrapeChanges.Internal.Domain as Domain
@@ -16,7 +17,6 @@ import qualified Network.Wreq as Http
 import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
 import Data.Hashable (Hashable)
-import qualified Data.Hashable as Hashable
 
 type Url = String
 type Scraper t = ByteString.ByteString -> t
@@ -37,7 +37,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               request = ((s . unpackResponse <$>) . Http.get) 
               response = request urlToRequest <* requestLog
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
-                let currentHashedResponse = show . Hashable.hash $ response'
+                let currentHashedResponse = hash' response'
                 let hashesAreDifferent = latestHashedResponse /= currentHashedResponse
                 let saveHash' = let saveHashLog = Log.infoM thisModule $ "Saved new hash for url '" ++ urlToRequest ++ "'"
                                 in  saveHash sc latestHashedResponse <* saveHashLog

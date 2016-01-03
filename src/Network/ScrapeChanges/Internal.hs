@@ -6,12 +6,15 @@ module Network.ScrapeChanges.Internal (
 , readLatestHash
 , saveHash
 , executeCallbackConfig
+, removeHash
+, hash'
 ) where
 import Prelude hiding (filter)
 import Data.Validation
 import Data.List.NonEmpty hiding (head, tail)
 import Data.Functor (($>))
 import Control.Lens
+import qualified Control.Exception as Exception
 import qualified Network.URI as U
 import qualified Data.Foldable as F
 import Network.ScrapeChanges.Internal.Domain
@@ -27,6 +30,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import qualified Network.Mail.Mime as Mime
 import System.FilePath ((</>))
+import qualified System.IO.Error as IOError
 
 type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
@@ -97,21 +101,29 @@ validateCronSchedule c =
 type Hash = String
 
 hashPath :: Hash -> IO FilePath
-hashPath hash' = let fileName = FilePath.pathSeparator : hash' ++ ".hash"
-                     buildHashPath p = p </> fileName
-                     hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
-                 in  hashPath' >>= readFile  
+hashPath hash'' = let fileName = FilePath.pathSeparator : hash'' ++ ".hash"
+                      buildHashPath p = p </> fileName
+                      hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
+                  in  hashPath' >>= readFile  
 
 readLatestHash :: (Hashable t) => t -> IO Hash
-readLatestHash t = hashPath (show . Hashable.hash $ t) >>= readFile
+readLatestHash t = hashPath (hash' t) >>= readFile
+
+hash' :: Hashable t => t -> String
+hash' = show . Hashable.hash
 
 saveHash :: (Hashable t) => t -> Hash -> IO ()
-saveHash t hash' = let hashOfT = (show . Hashable.hash $ t)
-                       hashPathForT = hashPath hashOfT
-                   in  hashPathForT >>= flip writeFile hash'
+saveHash t hash'' = let hashOfT = hash' t
+                        hashPathForT = hashPath hashOfT
+                    in  hashPathForT >>= flip writeFile hash''
+
+removeHash :: (Hashable t) => t -> IO ()
+removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catch` catchException
+  where catchException e | IOError.isDoesNotExistError e = return () 
+                         | otherwise = Exception.throwIO e
 
 executeCallbackConfig :: Hashable t => CallbackConfig t -> t -> IO ()
-executeCallbackConfig (MailConfig m) result = let m' = set mailBody (show . Hashable.hash $ result) m
+executeCallbackConfig (MailConfig m) result = let m' = set mailBody (hash' result) m
                                                   mimeMail = toMimeMail m'
                                               in Mime.renderSendMail mimeMail
 executeCallbackConfig (OtherConfig f) result = f result $> ()
