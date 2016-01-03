@@ -24,10 +24,9 @@ type Scraper t = ByteString.ByteString -> t
 
 -- TODO 
 -- add a function for cleaning up the written hashes
--- return t instead of ()
 -- review the hash functions
 
-scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO t)
 scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
@@ -43,19 +42,20 @@ scrape sc s = let result = const scrapeOrchestration <$> validateScrapeConfig sc
                                                         saveHash' = saveHash sc latestHashedResponse <* saveHashLog
                                                     in  when hashesAreDifferent saveHash' 
                 let executeCallbackConfig' = executeCallbackConfig (sc ^. scrapeInfoCallbackConfig) response'
-                (_, t) <- Async.concurrently saveHashIfSomethingHasChanged executeCallbackConfig'
-                return t
+                _ <- Async.concurrently saveHashIfSomethingHasChanged executeCallbackConfig'
+                return response'
 
 repeatScrape :: Hashable t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
   let cronSchedule = validateCronSchedule cs
       scrapeResult = scrape sc s ^. Validation._AccValidation
-      scrapeResultRepeated = const repeatScrape' <$> cronSchedule <*> scrapeResult
+      scrapeResultDroppedT = (fmap . fmap $ const ()) scrapeResult
+      scrapeResultRepeated = repeatScrape' <$ cronSchedule <*> scrapeResultDroppedT
   in scrapeResultRepeated ^. Validation._Either
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
-scrapeAll :: Hashable t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO ()))]
+scrapeAll :: Hashable t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO t))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
@@ -63,11 +63,3 @@ scrapeAll infos = let responses = TU.uncurry scrape <$> infos
 
 thisModule :: String
 thisModule = "Network.ScrapeChanges"
-
-{-
-configureLogger :: IO ()
-configureLogger = do
-  syslogHandler <- Syslog.openlog "scrape-changes" [Syslog.PID] Syslog.DAEMON Log.INFO
-  _ <- Log.updateGlobalLogger thisModule (Log.addHandler syslogHandler)
-  Log.updateGlobalLogger thisModule (Log.setLevel Log.INFO)
--}

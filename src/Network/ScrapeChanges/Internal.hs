@@ -1,5 +1,6 @@
 module Network.ScrapeChanges.Internal (
   mailScrapeConfig
+, otherScrapeConfig
 , validateScrapeConfig
 , validateCronSchedule
 , readLatestHash
@@ -31,8 +32,6 @@ type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
 type MailToAddr = MailAddr
 
---TODO default constructor for other scrape config
-
 mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig t
 mailScrapeConfig siu mfa mtads = ScrapeConfig {
   _scrapeInfoUrl = siu
@@ -44,6 +43,12 @@ mailScrapeConfig siu mfa mtads = ScrapeConfig {
         , _mailSubject = ""
         , _mailBody = ""
         }
+
+otherScrapeConfig :: ScrapeInfoUrl -> (t -> IO t) -> ScrapeConfig t
+otherScrapeConfig url f = ScrapeConfig {
+  _scrapeInfoUrl = url
+, _scrapeInfoCallbackConfig = OtherConfig f
+}
 
 validateScrapeConfig :: ScrapeConfig t -> ScrapeValidation (ScrapeConfig t)
 validateScrapeConfig si = 
