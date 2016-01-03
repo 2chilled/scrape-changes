@@ -23,10 +23,6 @@ type Scraper t = ByteString.ByteString -> t
 
 data ScrapeResult t = CallbackCalled t | CallbackNotCalled t
 
--- TODO 
--- add a function for cleaning up the written hashes
--- review the hash functions
-
 scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
 scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               in result ^. Validation._Either
