@@ -8,6 +8,9 @@ module Network.ScrapeChanges.Internal (
 , executeCallbackConfig
 , removeHash
 , hash'
+, ScrapeInfoUrl
+, MailFromAddr
+, MailToAddr
 ) where
 import Prelude hiding (filter)
 import Data.Validation

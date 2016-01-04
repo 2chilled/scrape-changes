@@ -1,3 +1,9 @@
+-- |
+-- Module      : Network.ScrapeChanges 
+-- Copyright   : (C) 2015-16 Matthias Herrmann
+-- License     : GPL-3
+-- Maintainer  : matthias.mh.herrmann@gmail.com
+--
 module Network.ScrapeChanges(
   scrape
 , repeatScrape
@@ -6,6 +12,12 @@ module Network.ScrapeChanges(
 , mailScrapeConfig
 , otherScrapeConfig
 , clearScrapeConfig
+, ScrapeInfoUrl
+, MailFromAddr
+, MailToAddr
+, Scraper
+, ScrapeResult(..)
+, Url
 ) where
 
 import Network.ScrapeChanges.Internal as Internal
@@ -26,14 +38,14 @@ type Scraper t = HttpBody -> t
 data ScrapeResult t = CallbackCalled t | CallbackNotCalled t
 
 -- |The basic scrape function. It fires a GET request against the url
--- defined within the provided 'ScrapeConfig t'. The body is passed to the
--- provided 'Scraper t'. The result 't' of the latter is used to determine
+-- defined within the provided 'ScrapeConfig'. The body is passed to the
+-- provided 'Scraper'. The result 't' of the latter is used to determine
 -- whether something has changed on the respective website. If so,
--- the callback configured in 'ScrapeConfig t' is executed and 
--- 'CallbackCalled t' is returned. Otherwise 'CallbackNotCalled t' is returned.
+-- the callback configured in 'ScrapeConfig' is executed and 
+-- 'CallbackCalled' is returned. Otherwise 'CallbackNotCalled' is returned.
 --
 -- Note that you should call 'clearScrapeConfig' after executing the
--- returned IO action with the same 'ScrapeConfig t' you provided to this
+-- returned 'IO' action with the same 'ScrapeConfig' you provided to this
 -- function. This will clear all mutable state used by 'scrape'.
 scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
 scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
@@ -54,7 +66,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
                 if hashesAreDifferent then CallbackCalled response' <$ saveHashAndExecuteCallbackConfig 
                                       else pure $ CallbackNotCalled response'
 
--- |Repeat executing 'scrape' by providing a CronSchedule
+-- |Repeat executing 'scrape' by providing a 'CronSchedule'
 repeatScrape :: Hashable t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
   let cronSchedule = validateCronSchedule cs
@@ -65,14 +77,14 @@ repeatScrape cs sc s =
   where repeatScrape' :: IO () -> IO ()
         repeatScrape' scrapeAction = () <$ CronSchedule.execSchedule (CronSchedule.addJob scrapeAction cs)
 
--- |Execute a list of 'ScrapeConfig t' in sequence using 'scrape' and collect
+-- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
 scrapeAll :: Hashable t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
 
--- |Clear all mutable state associated with the provided 'ScrapeConfig t'
+-- |Clear all mutable state associated with the provided 'ScrapeConfig'
 clearScrapeConfig :: (Hashable t) => ScrapeConfig t -> IO ()
 clearScrapeConfig = removeHash
 

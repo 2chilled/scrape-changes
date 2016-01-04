@@ -1,7 +1,9 @@
 name:                scrape-changes
 version:             0.1.0.0
-synopsis:            Scrapes websites for changes and notifies the user when there are any 
-description:         Scrapes websites for changes and notifies the user when there are any (e.g by sending an email)
+synopsis:            Scrape websites for changes
+description:         This library scrapes websites and invokes callbacks when there are changes, similar to a RSS reader.
+                     Sending an email by invoking sendmail is a built-in callback mechanism. Of course, users can provide 
+                     their own callback function in addition.
 license:             GPL-3
 license-file:        LICENSE
 author:              Matthias Herrmann
