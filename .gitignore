@@ -19,3 +19,4 @@ Setup.hs
 shell.nix
 *.log
 tags
+default.nix
