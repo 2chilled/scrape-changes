@@ -3,7 +3,7 @@
 module Network.ScrapeChanges.Internal.Test where
 import Prelude hiding (filter)
 import Network.ScrapeChanges.Internal as SUT
-import Network.ScrapeChanges.Internal.Domain as Domain
+import Network.ScrapeChanges.Domain as Domain
 import qualified Network.ScrapeChanges as SC
 import qualified Data.Maybe as M
 import qualified Data.List as L

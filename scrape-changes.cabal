@@ -16,6 +16,8 @@ cabal-version:       >=1.14
 
 library
   exposed-modules:     Network.ScrapeChanges 
+                       Network.ScrapeChanges.Domain
+                       Network.ScrapeChanges.Internal
   other-modules:       
   other-extensions:    
   build-depends:       base >=4.8 && <4.9

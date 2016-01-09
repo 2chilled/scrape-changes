@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK not-home #-}
+
 module Network.ScrapeChanges.Internal (
   mailScrapeConfig
 , otherScrapeConfig
@@ -11,7 +13,9 @@ module Network.ScrapeChanges.Internal (
 , ScrapeInfoUrl
 , MailFromAddr
 , MailToAddr
+, Hash
 ) where
+
 import Prelude hiding (filter)
 import Data.Validation
 import Data.List.NonEmpty hiding (head, tail)
@@ -20,7 +24,7 @@ import Control.Lens
 import qualified Control.Exception as Exception
 import qualified Network.URI as U
 import qualified Data.Foldable as F
-import Network.ScrapeChanges.Internal.Domain
+import Network.ScrapeChanges.Domain
 import qualified Data.ByteString.Lens as ByteStringLens
 import qualified Data.Text.Lens as TextLens
 import qualified Text.Email.Validate as EmailValidate

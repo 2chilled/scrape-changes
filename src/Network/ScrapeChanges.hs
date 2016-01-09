@@ -18,10 +18,14 @@ module Network.ScrapeChanges(
 , Scraper
 , ScrapeResult(..)
 , Url
+, Hash
+, HttpBody
+, ScrapeValidation
+, CronSchedule
 ) where
 
 import Network.ScrapeChanges.Internal as Internal
-import Network.ScrapeChanges.Internal.Domain as Domain
+import Network.ScrapeChanges.Domain as Domain
 import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
 import qualified System.Cron.Schedule as CronSchedule

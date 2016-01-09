@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Network.ScrapeChanges.Internal.Domain where
+module Network.ScrapeChanges.Domain where
 import Control.Lens
 import Data.Validation
 import Data.List.NonEmpty
