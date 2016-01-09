@@ -54,7 +54,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
           let unpackResponse = (^. Http.responseBody)
               urlToRequest = sc ^. scrapeInfoUrl
               requestLog = Log.infoM thisModule $ "Requesting " ++ urlToRequest
-              request = ((s . unpackResponse <$>) . Http.get) 
+              request = (s . unpackResponse <$>) . Http.get
               response = request urlToRequest <* requestLog
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
                 let currentHashedResponse = hash' response'
