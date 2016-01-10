@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_HADDOCK not-home #-}
+
 module Network.ScrapeChanges.Domain where
 import Control.Lens
 import Data.Validation

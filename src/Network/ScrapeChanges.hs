@@ -20,8 +20,7 @@ module Network.ScrapeChanges(
 , Url
 , Hash
 , HttpBody
-, ScrapeValidation
-, CronSchedule
+, module Domain
 ) where
 
 import Network.ScrapeChanges.Internal as Internal
