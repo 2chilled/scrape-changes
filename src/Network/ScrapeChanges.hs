@@ -29,16 +29,19 @@ import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
 import qualified System.Cron.Schedule as CronSchedule
 import Control.Lens
-import qualified Data.ByteString.Lazy.Internal as ByteString
+import qualified Data.ByteString.Lazy as ByteString
 import qualified Network.Wreq as Http
 import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
 import Data.Hashable (Hashable)
+import Data.List.NonEmpty (NonEmpty ((:|)))
+import qualified Data.Either as Either
+import qualified Data.Foldable as Foldable
 
 type Url = String
 type HttpBody = ByteString.ByteString
 type Scraper t = HttpBody -> t
-data ScrapeResult t = CallbackCalled t | CallbackNotCalled t
+data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
 
 -- |The basic scrape function. It fires a GET request against the url
 -- defined within the provided 'ScrapeConfig'. The body is passed to the
@@ -61,9 +64,9 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               response = request urlToRequest <* requestLog
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
                 let currentHashedResponse = hash' response'
-                let hashesAreDifferent = latestHashedResponse /= currentHashedResponse
+                let hashesAreDifferent = Foldable.or $ (/= currentHashedResponse) <$> latestHashedResponse
                 let saveHash' = let saveHashLog = Log.infoM thisModule $ "Saved new hash for url '" ++ urlToRequest ++ "'"
-                                in  saveHash sc latestHashedResponse <* saveHashLog
+                                in  saveHash sc currentHashedResponse <* saveHashLog
                 let executeCallbackConfig' = executeCallbackConfig (sc ^. scrapeInfoCallbackConfig) response'
                 let saveHashAndExecuteCallbackConfig = Async.concurrently saveHash' executeCallbackConfig'
                 if hashesAreDifferent then CallbackCalled response' <$ saveHashAndExecuteCallbackConfig 
@@ -95,3 +98,13 @@ clearScrapeConfig = removeHash
 
 thisModule :: String
 thisModule = "Network.ScrapeChanges"
+
+main :: IO ()
+main = let url = "http://www.bodman-ludwigshafen.de/verwaltung/bauen-und-planen/"
+           mailFrom = MailAddr Nothing "scraper@matthias01.bestforever.com"
+           mailTo = MailAddr Nothing "matthias.mh.herrmann@gmail.com"
+           scrapeConfig = mailScrapeConfig url mailFrom (mailTo :| [])
+           cronSchedule = "* * * * *"
+           scraper = ByteString.unpack
+           scrapeChangeResult = scrape scrapeConfig scraper
+       in  Either.either print ((>>= putStrLn . show)) scrapeChangeResult

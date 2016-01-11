@@ -34,7 +34,6 @@ import Control.Monad (void)
 import qualified Data.Hashable as Hashable
 import Data.Hashable (Hashable)
 import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 import qualified Network.Mail.Mime as Mime
 import System.FilePath ((</>))
 import qualified System.IO.Error as IOError
@@ -112,13 +111,15 @@ validateCronSchedule c =
 type Hash = String
 
 hashPath :: Hash -> IO FilePath
-hashPath hash'' = let fileName = FilePath.pathSeparator : hash'' ++ ".hash"
+hashPath hash'' = let fileName = hash'' ++ ".hash"
                       buildHashPath p = p </> fileName
                       hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
-                  in  hashPath' >>= readFile  
+                  in  hashPath' >>= readFile
 
-readLatestHash :: (Hashable t) => t -> IO Hash
-readLatestHash t = hashPath (hash' t) >>= readFile
+readLatestHash :: (Hashable t) => t -> IO (Maybe Hash)
+readLatestHash t = let readLatestHash' = hashPath (hash' t) >>= readFile
+                       readLatestHashMaybe = Just <$> readLatestHash'
+                   in readLatestHashMaybe `IOError.catchIOError` (\e -> if IOError.isDoesNotExistError e then pure Nothing else ioError e)
 
 hash' :: Hashable t => t -> String
 hash' = show . Hashable.hash
