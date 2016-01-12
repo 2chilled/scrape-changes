@@ -26,7 +26,7 @@ library
                      , mime-mail >= 0.4 && < 0.5
                      , network-uri >=2.6.0.3 && < 2.6.1
                      , email-validate >= 2.0 && < 2.2
-                     , semigroups >= 0.18
+                     , semigroups >= 0.16
                      , cron >= 0.3.2
                      , attoparsec >= 0.13.0
                      , wreq >= 0.4.0.0
@@ -54,7 +54,7 @@ test-suite scrapechanges-tests
                    , lens >=4.12 && <4.14
                    , email-validate >= 2.0 && < 2.2
                    , cron >= 0.3.2
-                   , semigroups >= 0.18
+                   , semigroups >= 0.16
                    , hashable >= 1.2.3.3
                    , scrape-changes
   default-language:  Haskell2010
