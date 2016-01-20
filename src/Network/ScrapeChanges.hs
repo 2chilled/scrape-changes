@@ -34,8 +34,6 @@ import qualified Network.Wreq as Http
 import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
 import Data.Hashable (Hashable)
-import Data.List.NonEmpty (NonEmpty ((:|)))
-import qualified Data.Either as Either
 import qualified Data.Foldable as Foldable
 
 type Url = String
@@ -99,12 +97,14 @@ clearScrapeConfig = removeHash
 thisModule :: String
 thisModule = "Network.ScrapeChanges"
 
-main :: IO ()
-main = let url = "http://www.bodman-ludwigshafen.de/verwaltung/bauen-und-planen/"
-           mailFrom = MailAddr Nothing "scraper@matthias01.bestforever.com"
-           mailTo = MailAddr Nothing "matthias.mh.herrmann@gmail.com"
-           scrapeConfig = mailScrapeConfig url mailFrom (mailTo :| [])
-           cronSchedule = "* * * * *"
-           scraper = ByteString.unpack
-           scrapeChangeResult = scrape scrapeConfig scraper
-       in  Either.either print ((>>= putStrLn . show)) scrapeChangeResult
+{-
+ -main :: IO ()
+ -main = let url = "http://www.bodman-ludwigshafen.de/verwaltung/bauen-und-planen/"
+ -           mailFrom = MailAddr Nothing "scraper@matthias01.bestforever.com"
+ -           mailTo = MailAddr Nothing "matthias.mh.herrmann@gmail.com"
+ -           scrapeConfig = mailScrapeConfig url mailFrom (mailTo :| [])
+ -           cronSchedule = "* * * * *"
+ -           scraper = ByteString.unpack
+ -           scrapeChangeResult = scrape scrapeConfig scraper
+ -       in  Either.either print ((>>= putStrLn . show)) scrapeChangeResult
+ -}
