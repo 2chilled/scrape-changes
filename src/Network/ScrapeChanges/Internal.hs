@@ -37,6 +37,9 @@ import qualified System.Directory as Directory
 import qualified Network.Mail.Mime as Mime
 import System.FilePath ((</>))
 import qualified System.IO.Error as IOError
+import qualified System.Directory as Dir
+import qualified System.FilePath as FilePath
+import qualified System.IO.Strict as StrictIO
 
 type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
@@ -71,34 +74,9 @@ validateScrapeConfig si =
       callbackValidation = validateCallbackConfig $ si ^. scrapeInfoCallbackConfig
   in const si <$> F.sequenceA_ [toUnit urlValidation, toUnit callbackValidation]
 
-validateMailConfig :: Mail -> ScrapeValidation Mail
-validateMailConfig m = 
-  let mailAddrs t = fromList $ m ^.. (t . traverse . mailAddr)
-      isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
-      mailFromAddr = m ^. mailFrom . mailAddr
-      invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> [mailFromAddr | isInvalidMailAddr mailFromAddr]
-      mailToAddrs = mailAddrs mailTo
-      invalidMailToAddrs = MailConfigInvalidMailToAddr <$> (isInvalidMailAddr `filter` mailToAddrs)
-      ok = pure m
-  in const m <$> F.sequenceA_ [
-    if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
-  , if null invalidMailToAddrs then ok else AccFailure invalidMailToAddrs
-  ]
-
 validateCallbackConfig :: CallbackConfig t -> ScrapeValidation (CallbackConfig t)
 validateCallbackConfig (MailConfig m) = MailConfig <$> validateMailConfig m
 validateCallbackConfig c@(OtherConfig _) = pure c
-
-validateUrl :: String -> ScrapeValidation String
-validateUrl s = let uriMaybe = U.parseAbsoluteURI s
-                    isAbsoluteUrl = U.isAbsoluteURI s 
-                    protocolMaybe = U.uriScheme <$> uriMaybe
-                    isHttp = (=="http:") `F.all` protocolMaybe
-                    ok = pure s
-                in const s <$> F.sequenceA_ [
-                     if isAbsoluteUrl then ok else AccFailure [UrlNotAbsolute]
-                   , if isHttp then ok else AccFailure [UrlProtocolInvalid]
-                   ]
 
 validateCronSchedule :: CronSchedule -> ScrapeValidation CronSchedule
 validateCronSchedule c = 
@@ -113,21 +91,15 @@ type Hash = String
 hashPath :: Hash -> IO FilePath
 hashPath hash'' = let fileName = hash'' ++ ".hash"
                       buildHashPath p = p </> fileName
-                      hashPath' = buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
-                  in  hashPath' >>= readFile
+                  in  buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
 
 readLatestHash :: (Hashable t) => t -> IO (Maybe Hash)
-readLatestHash t = let readLatestHash' = hashPath (hash' t) >>= readFile
+readLatestHash t = let readLatestHash' = hashPath (hash' t) >>= StrictIO.readFile
                        readLatestHashMaybe = Just <$> readLatestHash'
                    in readLatestHashMaybe `IOError.catchIOError` (\e -> if IOError.isDoesNotExistError e then pure Nothing else ioError e)
 
 hash' :: Hashable t => t -> String
 hash' = show . Hashable.hash
-
-saveHash :: (Hashable t) => t -> Hash -> IO ()
-saveHash t hash'' = let hashOfT = hash' t
-                        hashPathForT = hashPath hashOfT
-                    in  hashPathForT >>= flip writeFile hash''
 
 removeHash :: (Hashable t) => t -> IO ()
 removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catch` catchException
@@ -139,6 +111,41 @@ executeCallbackConfig (MailConfig m) result = let m' = set mailBody (hash' resul
                                                   mimeMail = toMimeMail m'
                                               in Mime.renderSendMail mimeMail
 executeCallbackConfig (OtherConfig f) result = f result $> ()
+
+-- private
+
+validateMailConfig :: Mail -> ScrapeValidation Mail
+validateMailConfig m = 
+  let mailAddrs t = fromList $ m ^.. (t . traverse . mailAddr)
+      isInvalidMailAddr = (not . EmailValidate.isValid . (^. ByteStringLens.packedChars))
+      mailFromAddr = m ^. mailFrom . mailAddr
+      invalidMailFromAddrs = MailConfigInvalidMailFromAddr <$> [mailFromAddr | isInvalidMailAddr mailFromAddr]
+      mailToAddrs = mailAddrs mailTo
+      invalidMailToAddrs = MailConfigInvalidMailToAddr <$> (isInvalidMailAddr `filter` mailToAddrs)
+      ok = pure m
+  in const m <$> F.sequenceA_ [
+    if null invalidMailFromAddrs then ok else AccFailure invalidMailFromAddrs
+  , if null invalidMailToAddrs then ok else AccFailure invalidMailToAddrs
+  ]
+
+
+validateUrl :: String -> ScrapeValidation String
+validateUrl s = let uriMaybe = U.parseAbsoluteURI s
+                    isAbsoluteUrl = U.isAbsoluteURI s 
+                    protocolMaybe = U.uriScheme <$> uriMaybe
+                    isHttp = (=="http:") `F.all` protocolMaybe
+                    ok = pure s
+                in const s <$> F.sequenceA_ [
+                     if isAbsoluteUrl then ok else AccFailure [UrlNotAbsolute]
+                   , if isHttp then ok else AccFailure [UrlProtocolInvalid]
+                   ]
+
+
+saveHash :: (Hashable t) => t -> Hash -> IO ()
+saveHash t hash'' = let hashOfT = hash' t
+                        hashPathForT = hashPath hashOfT >>= createParentDirs
+                    in  hashPathForT >>= flip writeFile hash''
+
 
 toMimeMail :: Mail -> Mime.Mail
 toMimeMail m = let toMimeAddress' ms = toList $ toMimeAddress <$> ms
@@ -154,3 +161,8 @@ toMimeAddress a = Mime.Address {
   Mime.addressName = a ^? mailAddrName . _Just . TextLens.packed
 , Mime.addressEmail = a ^. mailAddr . TextLens.packed
 }
+
+createParentDirs :: FilePath -> IO FilePath
+createParentDirs fp = let fpDir = FilePath.takeDirectory fp
+                      in Dir.createDirectoryIfMissing True fpDir *> pure fp
+

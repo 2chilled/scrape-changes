@@ -38,6 +38,7 @@ import qualified Data.Foldable as Foldable
 --import Data.List.NonEmpty (NonEmpty (..))
 --import qualified Data.Either as Either
 import qualified Control.Concurrent.MVar as MVar
+import qualified Data.Maybe as Maybe
 
 type Url = String
 type HttpBody = ByteString.ByteString
@@ -65,8 +66,10 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               response = request urlToRequest <* requestLog
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
                 let currentHashedResponse = hash' response'
-                let hashesAreDifferent = Foldable.or $ (/= currentHashedResponse) <$> latestHashedResponse
-                let saveHash' = let saveHashLog = Log.infoM thisModule $ "Saved new hash for url '" ++ urlToRequest ++ "'"
+                let hashesAreDifferent = Maybe.isNothing latestHashedResponse 
+                                          || Foldable.or ((/= currentHashedResponse) <$> latestHashedResponse)
+                let saveHash' = let saveHashMsg = "Saved new hash for url '" ++ urlToRequest ++ "'"
+                                    saveHashLog = Log.infoM thisModule saveHashMsg
                                 in  saveHash sc currentHashedResponse <* saveHashLog
                 let executeCallbackConfig' = executeCallbackConfig (sc ^. scrapeInfoCallbackConfig) response'
                 let saveHashAndExecuteCallbackConfig = Async.concurrently saveHash' executeCallbackConfig'
@@ -105,13 +108,13 @@ thisModule :: String
 thisModule = "Network.ScrapeChanges"
 
 {-
- -main :: IO ()
- -main = let url = "http://www.bodmanludwigshafen.de/verwaltung/bauenundplanen/"
- -           mailFrom = MailAddr Nothing "scraper@matthias01.bestforever.com"
- -           mailTo = MailAddr Nothing "matthias.mh.herrmann@gmail.com"
- -           scrapeConfig = mailScrapeConfig url mailFrom (mailTo :| [])
- -           cronSchedule = "* * * * *"
- -           scraper = ByteString.unpack
- -           scrapeChangeResult = scrape scrapeConfig scraper
- -       in  (Either.either print id) $ repeatScrape cronSchedule scrapeConfig scraper 
+ main :: IO ()
+ main = let url = "http://www.bodman-ludwigshafen.de/verwaltung/bauen-und-planen/"
+            mailFrom = MailAddr Nothing "scraper@matthias01.bestforever.com"
+            mailTo = MailAddr Nothing "matthias.mh.herrmann@gmail.com"
+            scrapeConfig = mailScrapeConfig url mailFrom (mailTo :| [])
+            cronSchedule = "* * * * *"
+            scraper = ByteString.unpack
+            scrapeChangeResult = scrape scrapeConfig scraper
+        in  (Either.either print id) $ repeatScrape cronSchedule scrapeConfig scraper -- (Either.either print (>>= print)) $ scrape scrapeConfig scraper -- 
  -}
