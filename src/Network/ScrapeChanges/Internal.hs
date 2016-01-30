@@ -108,12 +108,14 @@ removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catc
   where catchException e | IOError.isDoesNotExistError e = return () 
                          | otherwise = Exception.throwIO e
 
-executeCallbackConfig :: Show t => CallbackConfig t -> t -> IO ()
-executeCallbackConfig (MailConfig m) result = let m' = set mailBody (show result) m
-                                                  mimeMail = toMimeMail m'
-                                                  debugLog = Log.debugM loggerName $ "Mail body: " ++ show m'
-                                              in debugLog *> Mime.renderSendMail mimeMail
-executeCallbackConfig (OtherConfig f) result = f result $> ()
+executeCallbackConfig :: Show t => ScrapeConfig t -> t -> IO ()
+executeCallbackConfig (ScrapeConfig url (MailConfig m)) result = 
+    let mailModifier = set mailBody (show result) . set mailSubject ("Changes from " ++ url)
+        m' = mailModifier m
+        mimeMail = toMimeMail m'
+        debugLog = Log.debugM loggerName $ "Mail body: " ++ show m'
+    in debugLog *> Mime.renderSendMail mimeMail
+executeCallbackConfig (ScrapeConfig _ (OtherConfig f)) result = f result $> ()
 
 loggerName :: String
 loggerName = "Network.ScrapeChanges"

@@ -71,7 +71,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
                 let saveHash' = let saveHashMsg = "Saved new hash for url '" ++ urlToRequest ++ "'"
                                     saveHashLog = Log.infoM loggerName saveHashMsg
                                 in  saveHash sc currentHashedResponse <* saveHashLog
-                let executeCallbackConfig' = executeCallbackConfig (sc ^. scrapeInfoCallbackConfig) response'
+                let executeCallbackConfig' = executeCallbackConfig sc response'
                 let saveHashAndExecuteCallbackConfig = Async.concurrently saveHash' executeCallbackConfig'
                 if hashesAreDifferent then CallbackCalled response' <$ saveHashAndExecuteCallbackConfig 
                                       else pure $ CallbackNotCalled response'
