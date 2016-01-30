@@ -108,9 +108,7 @@ repeatScrapeAll scrapeSchedules =
             resultWithCronScheduleErrorMapped = 
               ((\x -> [(scrapeConfigUrl, x)]) <$> (resultWithCronSchedule ^. swapped)) ^. swapped
         in  Tuple.uncurry CronSchedule.addJob <$> resultWithCronScheduleErrorMapped
-  in ((*> blockForever) . CronSchedule.execSchedule . Foldable.sequenceA_) <$> cronSchedules ^. Validation._Either
-  where blockForever :: IO ()
-        blockForever = Monad.forever getChar
+  in (Monad.void . CronSchedule.execSchedule . Foldable.sequenceA_) <$> cronSchedules ^. Validation._Either
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
