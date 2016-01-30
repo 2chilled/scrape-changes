@@ -80,7 +80,7 @@ validateCallbackConfig :: CallbackConfig t -> ScrapeValidation (CallbackConfig t
 validateCallbackConfig (MailConfig m) = MailConfig <$> validateMailConfig m
 validateCallbackConfig c@(OtherConfig _) = pure c
 
-validateCronSchedule :: CronSchedule -> ScrapeValidation CronSchedule
+validateCronSchedule :: CronScheduleString -> ScrapeValidation CronScheduleString
 validateCronSchedule c = 
   let mapFailure = _Failure %~ \s -> [CronScheduleInvalid s]
       setSuccess = _Success .~ c

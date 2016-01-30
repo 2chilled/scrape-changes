@@ -19,13 +19,13 @@ import qualified Data.Validation as V
 import qualified Text.Email.Validate as EmailValidate
 import qualified Data.Hashable as Hashable
 
-newtype NCronSchedule = NCronSchedule { nCronScheduleRun :: String } deriving Show
+newtype NCronScheduleString = NCronScheduleString { nCronScheduleStringRun :: String } deriving Show
 
-instance Arbitrary NCronSchedule where 
-    arbitrary = NCronSchedule <$> oneof [pure correctCronSchedule, arbitrary]
+instance Arbitrary NCronScheduleString where 
+    arbitrary = NCronScheduleString <$> oneof [pure correctCronScheduleString, arbitrary]
 
-correctCronSchedule :: String
-correctCronSchedule = "*/2 * 3 * 4,5,6"
+correctCronScheduleString :: String
+correctCronScheduleString = "*/2 * 3 * 4,5,6"
 
 emailAddressGen :: Gen String
 emailAddressGen = oneof [pure correctMailAddr, arbitrary]
@@ -103,10 +103,10 @@ validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^
       invalidMailToAddrsProp = invalidMailAddrsProp $ MailConfigInvalidMailToAddr <$> invalidMailToAddrs
   in property invalidMailFromAddrsProp .&&. property invalidMailToAddrsProp
 
-validateCronScheduleShouldSatisfyAllInvariants :: NCronSchedule -> Property
+validateCronScheduleShouldSatisfyAllInvariants :: NCronScheduleString -> Property
 validateCronScheduleShouldSatisfyAllInvariants c = 
-  let result = SUT.validateCronSchedule $ nCronScheduleRun c
-      isCorrect = nCronScheduleRun c /= correctCronSchedule
+  let result = SUT.validateCronSchedule $ nCronScheduleStringRun c
+      isCorrect = nCronScheduleStringRun c /= correctCronScheduleString
                     || M.isJust (result ^? V._Success)
       containsExpectedError = False `M.fromMaybe` ((CronScheduleInvalid "" `elem`) <$> (result ^? V._Failure))
   in property isCorrect .||. property containsExpectedError
@@ -139,7 +139,7 @@ tests =
         validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants
     , testProperty "validateScrapeConfig with other config should satisfy all invariants"
         validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants
-    , testProperty "validateCronSchedule should satisfy all invariants"
+    , testProperty "validateCronScheduleString should satisfy all invariants"
         validateCronScheduleShouldSatisfyAllInvariants
     , testProperty "Different ScrapeConfig's should yield to different hashes"
         differentScrapeConfigsShouldYieldToDifferentHashes

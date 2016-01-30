@@ -52,7 +52,7 @@ type Url = String
 type HttpBody = ByteString.ByteString
 type Scraper t = HttpBody -> t
 data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
-data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronSchedule
+data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
                                        , _scrapeScheduleConfig :: ScrapeConfig t
                                        , _scrapeScheduleScraper :: Scraper t
                                        }                 
@@ -90,9 +90,9 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
                 if hashesAreDifferent then CallbackCalled response' <$ saveHashAndExecuteCallbackConfig 
                                       else pure $ CallbackNotCalled response'
 
--- |Repeat executing 'scrape' by providing a 'CronSchedule'. The returned
+-- |Repeat executing 'scrape' by providing a 'CronScheduleString'. The returned
 -- IO action blocks the current thread
-repeatScrape :: (Hashable t, Show t) => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+repeatScrape :: (Hashable t, Show t) => CronScheduleString -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = let result = repeatScrapeAll [ScrapeSchedule cs sc s]
                            resultErrorMapped = (snd . head <$> (result ^. swapped)) ^. swapped
                        in resultErrorMapped
@@ -109,6 +109,8 @@ repeatScrapeAll scrapeSchedules =
               ((\x -> [(scrapeConfigUrl, x)]) <$> (resultWithCronSchedule ^. swapped)) ^. swapped
         in  Tuple.uncurry CronSchedule.addJob <$> resultWithCronScheduleErrorMapped
   in (Monad.void . CronSchedule.execSchedule . Foldable.sequenceA_) <$> cronSchedules ^. Validation._Either
+  where toCronSchedule :: IO t -> IO (CronSchedule.Schedule ())
+        toCronSchedule = undefined
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.

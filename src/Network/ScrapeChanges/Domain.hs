@@ -59,7 +59,7 @@ data ValidationError = UrlNotAbsolute
 type ScrapeValidation t = AccValidation [ValidationError] t
 
 -- |String encoded in the standard cron format
-type CronSchedule = String
+type CronScheduleString = String
 
 makeLenses ''MailAddr
 makeLenses ''Mail
