@@ -41,12 +41,9 @@ import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
 import Data.Hashable (Hashable)
 import qualified Data.Foldable as Foldable
---import Data.List.NonEmpty (NonEmpty (..))
---import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 import qualified Control.Monad as Monad
-import qualified Data.Tuple as Tuple
 
 type Url = String
 type HttpBody = ByteString.ByteString
@@ -103,14 +100,12 @@ repeatScrapeAll scrapeSchedules =
         let scrapeConfigUrl = scrapeConfig ^. scrapeInfoUrl
             cronScheduleValidation = validateCronSchedule cronSchedule
             resultValidation = scrape scrapeConfig scraper ^. Validation._AccValidation
-            resultDroppedT = Monad.void <$> resultValidation
-            resultWithCronSchedule = (,) <$> resultDroppedT <*> cronScheduleValidation
-            resultWithCronScheduleErrorMapped = 
-              ((\x -> [(scrapeConfigUrl, x)]) <$> (resultWithCronSchedule ^. swapped)) ^. swapped
-        in  Tuple.uncurry CronSchedule.addJob <$> resultWithCronScheduleErrorMapped
+            result = toCronSchedule <$> resultValidation <*> cronScheduleValidation
+        in  ((\x -> [(scrapeConfigUrl, x)]) <$> (result ^. swapped)) ^. swapped
   in (Monad.void . CronSchedule.execSchedule . Foldable.sequenceA_) <$> cronSchedules ^. Validation._Either
-  where toCronSchedule :: IO t -> IO (CronSchedule.Schedule ())
-        toCronSchedule = undefined
+  where toCronSchedule :: IO t -> CronScheduleString -> CronSchedule.Schedule ()
+        toCronSchedule scrapeAction = CronSchedule.addJob (Monad.void scrapeAction) 
+          
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
@@ -122,17 +117,3 @@ scrapeAll infos = let responses = TU.uncurry scrape <$> infos
 -- |Clear all mutable state associated with the provided 'ScrapeConfig'
 clearScrapeConfig :: (Hashable t) => ScrapeConfig t -> IO ()
 clearScrapeConfig = removeHash
-
--- private 
-
-{-
- main :: IO ()
- main = let url = "http://www.bodman-ludwigshafen.de/verwaltung/bauen-und-planen/"
-            mailFrom = MailAddr Nothing "scraper@matthias01.bestforever.com"
-            mailTo = MailAddr Nothing "matthias.mh.herrmann@gmail.com"
-            scrapeConfig = mailScrapeConfig url mailFrom (mailTo :| [])
-            cronSchedule = "* * * * *"
-            scraper = ByteString.unpack
-            scrapeChangeResult = scrape scrapeConfig scraper
-        in  (Either.either print id) $ repeatScrape cronSchedule scrapeConfig scraper -- (Either.either print (>>= print)) $ scrape scrapeConfig scraper -- 
- -}
