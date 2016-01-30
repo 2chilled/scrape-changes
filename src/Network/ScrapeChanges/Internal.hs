@@ -14,6 +14,7 @@ module Network.ScrapeChanges.Internal (
 , MailFromAddr
 , MailToAddr
 , Hash
+, loggerName
 ) where
 
 import Prelude hiding (filter)
@@ -40,6 +41,7 @@ import qualified System.IO.Error as IOError
 import qualified System.Directory as Dir
 import qualified System.FilePath as FilePath
 import qualified System.IO.Strict as StrictIO
+import qualified System.Log.Logger as Log
 
 type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
@@ -106,11 +108,15 @@ removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catc
   where catchException e | IOError.isDoesNotExistError e = return () 
                          | otherwise = Exception.throwIO e
 
-executeCallbackConfig :: Hashable t => CallbackConfig t -> t -> IO ()
-executeCallbackConfig (MailConfig m) result = let m' = set mailBody (hash' result) m
+executeCallbackConfig :: Show t => CallbackConfig t -> t -> IO ()
+executeCallbackConfig (MailConfig m) result = let m' = set mailBody (show result) m
                                                   mimeMail = toMimeMail m'
-                                              in Mime.renderSendMail mimeMail
+                                                  debugLog = Log.debugM loggerName $ "Mail body: " ++ show m'
+                                              in debugLog *> Mime.renderSendMail mimeMail
 executeCallbackConfig (OtherConfig f) result = f result $> ()
+
+loggerName :: String
+loggerName = "Network.ScrapeChanges"
 
 -- private
 
@@ -165,4 +171,5 @@ toMimeAddress a = Mime.Address {
 createParentDirs :: FilePath -> IO FilePath
 createParentDirs fp = let fpDir = FilePath.takeDirectory fp
                       in Dir.createDirectoryIfMissing True fpDir *> pure fp
+
 

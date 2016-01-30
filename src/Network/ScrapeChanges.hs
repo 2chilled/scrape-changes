@@ -55,13 +55,13 @@ data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
 -- Note that you should call 'clearScrapeConfig' after executing the
 -- returned 'IO' action with the same 'ScrapeConfig' you provided to this
 -- function. This will clear all mutable state used by 'scrape'.
-scrape :: Hashable t => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
+scrape :: (Hashable t, Show t) => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
 scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
           let unpackResponse = (^. Http.responseBody)
               urlToRequest = sc ^. scrapeInfoUrl
-              requestLog = Log.infoM thisModule $ "Requesting " ++ urlToRequest
+              requestLog = Log.infoM loggerName $ "Requesting " ++ urlToRequest
               request = (s . unpackResponse <$>) . Http.get
               response = request urlToRequest <* requestLog
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
@@ -69,7 +69,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
                 let hashesAreDifferent = Maybe.isNothing latestHashedResponse 
                                           || Foldable.or ((/= currentHashedResponse) <$> latestHashedResponse)
                 let saveHash' = let saveHashMsg = "Saved new hash for url '" ++ urlToRequest ++ "'"
-                                    saveHashLog = Log.infoM thisModule saveHashMsg
+                                    saveHashLog = Log.infoM loggerName saveHashMsg
                                 in  saveHash sc currentHashedResponse <* saveHashLog
                 let executeCallbackConfig' = executeCallbackConfig (sc ^. scrapeInfoCallbackConfig) response'
                 let saveHashAndExecuteCallbackConfig = Async.concurrently saveHash' executeCallbackConfig'
@@ -78,7 +78,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
 
 -- |Repeat executing 'scrape' by providing a 'CronSchedule'. The returned
 -- IO action blocks the current thread
-repeatScrape :: Hashable t => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+repeatScrape :: (Hashable t, Show t) => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = 
   let cronSchedule = validateCronSchedule cs
       scrapeResult = scrape sc s ^. Validation._AccValidation
@@ -93,7 +93,7 @@ repeatScrape cs sc s =
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
-scrapeAll :: Hashable t => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
+scrapeAll :: (Hashable t, Show t) => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
@@ -103,9 +103,6 @@ clearScrapeConfig :: (Hashable t) => ScrapeConfig t -> IO ()
 clearScrapeConfig = removeHash
 
 -- private 
-
-thisModule :: String
-thisModule = "Network.ScrapeChanges"
 
 {-
  main :: IO ()
