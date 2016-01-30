@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 -- |
 -- Module      : Network.ScrapeChanges 
 -- Copyright   : (C) 2015-16 Matthias Herrmann
@@ -7,8 +8,10 @@
 module Network.ScrapeChanges(
   scrape
 , repeatScrape
+, repeatScrapeAll
 , scrapeAll
 , ScrapeConfig(..)
+, ScrapeSchedule(..)
 , mailScrapeConfig
 , otherScrapeConfig
 , clearScrapeConfig
@@ -20,6 +23,9 @@ module Network.ScrapeChanges(
 , Url
 , Hash
 , HttpBody
+, scrapeScheduleCron
+, scrapeScheduleConfig
+, scrapeScheduleScraper
 , module Domain
 ) where
 
@@ -37,14 +43,22 @@ import Data.Hashable (Hashable)
 import qualified Data.Foldable as Foldable
 --import Data.List.NonEmpty (NonEmpty (..))
 --import qualified Data.Either as Either
-import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Maybe as Maybe
+import qualified Data.Traversable as Traversable
+import qualified Control.Monad as Monad
+import qualified Data.Tuple as Tuple
 
 type Url = String
 type HttpBody = ByteString.ByteString
 type Scraper t = HttpBody -> t
 data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
+data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronSchedule
+                                       , _scrapeScheduleConfig :: ScrapeConfig t
+                                       , _scrapeScheduleScraper :: Scraper t
+                                       }                 
+makeLenses ''ScrapeSchedule
 
+-- TODO investigate utf-8 issue
 -- |The basic scrape function. It fires a GET request against the url
 -- defined within the provided 'ScrapeConfig'. The body is passed to the
 -- provided 'Scraper'. The result 't' of the latter is used to determine
@@ -79,17 +93,24 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
 -- |Repeat executing 'scrape' by providing a 'CronSchedule'. The returned
 -- IO action blocks the current thread
 repeatScrape :: (Hashable t, Show t) => CronSchedule -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
-repeatScrape cs sc s = 
-  let cronSchedule = validateCronSchedule cs
-      scrapeResult = scrape sc s ^. Validation._AccValidation
-      scrapeResultDroppedT = (fmap . fmap $ const ()) scrapeResult
-      scrapeResultRepeated = repeatScrape' <$ cronSchedule <*> scrapeResultDroppedT
-  in scrapeResultRepeated ^. Validation._Either
-  where repeatScrape' :: IO () -> IO ()
-        repeatScrape' scrapeAction = do
-          mVar <- MVar.newEmptyMVar
-          _ <- CronSchedule.execSchedule (CronSchedule.addJob (scrapeAction >> MVar.putMVar mVar ()) cs)
-          MVar.takeMVar mVar
+repeatScrape cs sc s = let result = repeatScrapeAll [ScrapeSchedule cs sc s]
+                           resultErrorMapped = (snd . head <$> (result ^. swapped)) ^. swapped
+                       in resultErrorMapped
+
+repeatScrapeAll :: (Hashable t, Show t) => [ScrapeSchedule t] -> Either [(Url, [ValidationError])] (IO ())
+repeatScrapeAll scrapeSchedules = 
+  let cronSchedules = Traversable.for scrapeSchedules $ \(ScrapeSchedule cronSchedule scrapeConfig scraper) ->
+        let scrapeConfigUrl = scrapeConfig ^. scrapeInfoUrl
+            cronScheduleValidation = validateCronSchedule cronSchedule
+            resultValidation = scrape scrapeConfig scraper ^. Validation._AccValidation
+            resultDroppedT = Monad.void <$> resultValidation
+            resultWithCronSchedule = (,) <$> resultDroppedT <*> cronScheduleValidation
+            resultWithCronScheduleErrorMapped = 
+              ((\x -> [(scrapeConfigUrl, x)]) <$> (resultWithCronSchedule ^. swapped)) ^. swapped
+        in  Tuple.uncurry CronSchedule.addJob <$> resultWithCronScheduleErrorMapped
+  in ((*> blockForever) . CronSchedule.execSchedule . Foldable.sequenceA_) <$> cronSchedules ^. Validation._Either
+  where blockForever :: IO ()
+        blockForever = Monad.forever getChar
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
