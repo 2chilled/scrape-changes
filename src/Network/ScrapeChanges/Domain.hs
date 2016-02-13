@@ -2,10 +2,12 @@
 {-# OPTIONS_HADDOCK not-home #-}
 
 module Network.ScrapeChanges.Domain where
+
 import Control.Lens
 import Data.Validation
 import Data.List.NonEmpty
 import Data.Hashable (Hashable, hashWithSalt)
+import qualified Data.ByteString.Lazy as ByteString
 
 data MailAddr = MailAddr {
   _mailAddrName :: Maybe String
@@ -61,6 +63,15 @@ type ScrapeValidation t = AccValidation [ValidationError] t
 -- |String encoded in the standard cron format
 type CronScheduleString = String
 
+type Url = String
+type HttpBody = ByteString.ByteString
+type Scraper t = HttpBody -> t
+data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
+data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
+                                       , _scrapeScheduleConfig :: ScrapeConfig t
+                                       , _scrapeScheduleScraper :: Scraper t
+                                       }                 
+makeLenses ''ScrapeSchedule
 makeLenses ''MailAddr
 makeLenses ''Mail
 makeLenses ''ScrapeConfig

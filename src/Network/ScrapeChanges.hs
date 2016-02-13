@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 -- |
 -- Module      : Network.ScrapeChanges 
 -- Copyright   : (C) 2015-16 Matthias Herrmann
@@ -10,22 +9,9 @@ module Network.ScrapeChanges(
 , repeatScrape
 , repeatScrapeAll
 , scrapeAll
-, ScrapeConfig(..)
-, ScrapeSchedule(..)
 , mailScrapeConfig
 , otherScrapeConfig
 , clearScrapeConfig
-, ScrapeInfoUrl
-, MailFromAddr
-, MailToAddr
-, Scraper
-, ScrapeResult(..)
-, Url
-, Hash
-, HttpBody
-, scrapeScheduleCron
-, scrapeScheduleConfig
-, scrapeScheduleScraper
 , module Domain
 ) where
 
@@ -35,7 +21,6 @@ import qualified Data.Validation as Validation
 import qualified Data.Tuple as TU
 import qualified System.Cron.Schedule as CronSchedule
 import Control.Lens
-import qualified Data.ByteString.Lazy as ByteString
 import qualified Network.Wreq as Http
 import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
@@ -44,16 +29,6 @@ import qualified Data.Foldable as Foldable
 import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 import qualified Control.Monad as Monad
-
-type Url = String
-type HttpBody = ByteString.ByteString
-type Scraper t = HttpBody -> t
-data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
-data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
-                                       , _scrapeScheduleConfig :: ScrapeConfig t
-                                       , _scrapeScheduleScraper :: Scraper t
-                                       }                 
-makeLenses ''ScrapeSchedule
 
 -- TODO investigate utf-8 issue
 -- |The basic scrape function. It fires a GET request against the url
