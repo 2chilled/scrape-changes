@@ -29,6 +29,7 @@ import qualified Data.Foldable as Foldable
 import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 import qualified Control.Monad as Monad
+import qualified Control.Exception as Exception
 
 -- TODO investigate utf-8 issue
 -- |The basic scrape function. It fires a GET request against the url
@@ -49,7 +50,7 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               urlToRequest = sc ^. scrapeInfoUrl
               requestLog = Log.infoM loggerName $ "Requesting " ++ urlToRequest
               request = (s . unpackResponse <$>) . Http.get
-              response = request urlToRequest <* requestLog
+              response = (request urlToRequest <* requestLog) `Exception.catch` httpExceptionHandler sc
           in do (response', latestHashedResponse) <- Async.concurrently response (readLatestHash sc)
                 let currentHashedResponse = hash' response'
                 let hashesAreDifferent = Maybe.isNothing latestHashedResponse 

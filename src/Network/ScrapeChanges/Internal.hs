@@ -15,6 +15,7 @@ module Network.ScrapeChanges.Internal (
 , MailToAddr
 , Hash
 , loggerName
+, httpExceptionHandler
 ) where
 
 import Prelude hiding (filter)
@@ -42,6 +43,8 @@ import qualified System.Directory as Dir
 import qualified System.FilePath as FilePath
 import qualified System.IO.Strict as StrictIO
 import qualified System.Log.Logger as Log
+import qualified Data.Maybe as Maybe
+import Network.HTTP.Client (HttpException)
 
 type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
@@ -174,4 +177,16 @@ createParentDirs :: FilePath -> IO FilePath
 createParentDirs fp = let fpDir = FilePath.takeDirectory fp
                       in Dir.createDirectoryIfMissing True fpDir *> pure fp
 
+httpExceptionHandler :: ScrapeConfig t -> HttpException -> IO t
+httpExceptionHandler sc e = let maybeMail = sc ^? scrapeInfoCallbackConfig . _MailConfig
+                                url = sc ^. scrapeInfoUrl
+                                maybeMailAction = Maybe.fromMaybe (pure ()) (sendMail url <$> maybeMail)
+                            in F.sequenceA_ [Log.errorM loggerName (show e), maybeMailAction] *> Exception.throw e
+                                
+  where sendMail :: Url -> Mail -> IO ()
+        sendMail url m = let mailModifier = set mailBody (show e) . set mailSubject ("Http error while requesting " ++ url)
+                             m' = mailModifier m
+                             mimeMail = toMimeMail m'
+                         in Mime.renderSendMail mimeMail 
 
+--                                    saveHashLog = Log.infoM loggerName saveHashMsg
