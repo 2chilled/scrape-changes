@@ -88,7 +88,8 @@ validateCronSchedule c =
   let mapFailure = _Failure %~ \s -> [CronScheduleInvalid s]
       setSuccess = _Success .~ c
       either' = AttoparsecText.parseOnly CronParser.cronSchedule (c ^. TextLens.packed)
-      mappedEither' = mapFailure . setSuccess $ either'
+      mappedEither' = either' & mapFailure
+                              & setSuccess
   in  mappedEither' ^. _AccValidation
 
 type Hash = String
@@ -113,8 +114,8 @@ removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catc
 
 executeCallbackConfig :: Show t => ScrapeConfig t -> t -> IO ()
 executeCallbackConfig (ScrapeConfig url (MailConfig m)) result = 
-    let mailModifier = set mailBody (show result) . set mailSubject ("Changes from " ++ url)
-        m' = mailModifier m
+    let m' = m & set mailBody (show result)
+               & set mailSubject ("Changes from " ++ url)
         mimeMail = toMimeMail m'
         debugLog = Log.debugM loggerName $ "Mail body: " ++ show m'
     in debugLog *> Mime.renderSendMail mimeMail
@@ -184,8 +185,8 @@ httpExceptionHandler sc e = let maybeMail = sc ^? scrapeInfoCallbackConfig . _Ma
                             in F.sequenceA_ [Log.errorM loggerName (show e), maybeMailAction] *> Exception.throw e
                                 
   where sendMail :: Url -> Mail -> IO ()
-        sendMail url m = let mailModifier = set mailBody (show e) . set mailSubject ("Http error while requesting " ++ url)
-                             m' = mailModifier m
+        sendMail url m = let m' = m & set mailBody (show e)
+                                    & set mailSubject ("Http error while requesting " ++ url)
                              mimeMail = toMimeMail m'
                          in Mime.renderSendMail mimeMail 
 
