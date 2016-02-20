@@ -30,8 +30,9 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 import qualified Control.Monad as Monad
 import qualified Control.Exception as Exception
+import qualified Data.Text.Lazy.Lens as TextLazyLens
+import TextShow (TextShow)
 
--- TODO investigate utf-8 issue
 -- |The basic scrape function. It fires a GET request against the url
 -- defined within the provided 'ScrapeConfig'. The body is passed to the
 -- provided 'Scraper'. The result 't' of the latter is used to determine
@@ -42,11 +43,11 @@ import qualified Control.Exception as Exception
 -- Note that you should call 'clearScrapeConfig' after executing the
 -- returned 'IO' action with the same 'ScrapeConfig' you provided to this
 -- function. This will clear all mutable state used by 'scrape'.
-scrape :: (Hashable t, Show t) => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
+scrape :: (Hashable t, TextShow t) => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
 scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
-          let unpackResponse = (^. Http.responseBody)
+          let unpackResponse = (^. Http.responseBody . TextLazyLens.utf8)
               urlToRequest = sc ^. scrapeInfoUrl
               requestLog = Log.infoM loggerName $ "Requesting " ++ urlToRequest
               request = (s . unpackResponse <$>) . Http.get
@@ -65,12 +66,12 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
 
 -- |Repeat executing 'scrape' by providing a 'CronScheduleString'. The returned
 -- IO action blocks the current thread
-repeatScrape :: (Hashable t, Show t) => CronScheduleString -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+repeatScrape :: (Hashable t, TextShow t) => CronScheduleString -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = let result = repeatScrapeAll [ScrapeSchedule cs sc s]
                            resultErrorMapped = (snd . head <$> (result ^. swapped)) ^. swapped
                        in resultErrorMapped
 
-repeatScrapeAll :: (Hashable t, Show t) => [ScrapeSchedule t] -> Either [(Url, [ValidationError])] (IO ())
+repeatScrapeAll :: (Hashable t, TextShow t) => [ScrapeSchedule t] -> Either [(Url, [ValidationError])] (IO ())
 repeatScrapeAll scrapeSchedules = 
   let cronSchedules = Traversable.for scrapeSchedules $ \(ScrapeSchedule cronSchedule scrapeConfig scraper) ->
         let scrapeConfigUrl = scrapeConfig ^. scrapeInfoUrl
@@ -85,7 +86,7 @@ repeatScrapeAll scrapeSchedules =
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
-scrapeAll :: (Hashable t, Show t) => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
+scrapeAll :: (Hashable t, TextShow t) => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses

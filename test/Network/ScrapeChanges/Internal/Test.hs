@@ -17,6 +17,7 @@ import Control.Lens
 import qualified Data.ByteString.Lens as ByteStringLens
 import qualified Data.Validation as V
 import qualified Text.Email.Validate as EmailValidate
+import qualified Data.Text.Lazy as TextLazy
 import qualified Data.Hashable as Hashable
 
 newtype NCronScheduleString = NCronScheduleString { nCronScheduleStringRun :: String } deriving Show
@@ -32,6 +33,9 @@ emailAddressGen = oneof [pure correctMailAddr, arbitrary]
 
 instance Arbitrary MailAddr where
   arbitrary = MailAddr <$> arbitrary <*> emailAddressGen
+
+instance Arbitrary TextLazy.Text where
+  arbitrary = TextLazy.pack <$> arbitrary
 
 instance Arbitrary Mail where
   arbitrary = Mail <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
@@ -51,7 +55,7 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
 
 tMailAddr :: MailAddr
-tMailAddr = MailAddr (Just "Max Mustermann") "max@mustermann.com"
+tMailAddr = MailAddr (Just $ TextLazy.pack "Max Mustermann") "max@mustermann.com"
 
 correctMailAddr :: String
 correctMailAddr = "correct@mail.com"
@@ -121,8 +125,8 @@ differentScrapeConfigsShouldYieldToDifferentHashes c1 c2 =
           label "correspondenceBetweenEqualsAndHashable" $ if c1 == c2 then hashedC1 == hashedC2
                                                                        else hashedC1 /= hashedC2
         differentMailConfigAttribute = let setMailSubject = set $ scrapeInfoCallbackConfig . _MailConfig . mailSubject
-                                           c1' = setMailSubject "sub1" c1
-                                           c2' = setMailSubject "sub2" c2
+                                           c1' = c1 & setMailSubject (TextLazy.pack "sub1")
+                                           c2' = c2 & setMailSubject (TextLazy.pack "sub2") 
                                        in label "differentMailConfigAttribute" $ c1' /= c2'
     in correspondenceBetweenEqualsAndHashable .&&. differentMailConfigAttribute
 

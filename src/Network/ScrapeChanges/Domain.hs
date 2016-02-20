@@ -7,18 +7,18 @@ import Control.Lens
 import Data.Validation
 import Data.List.NonEmpty
 import Data.Hashable (Hashable, hashWithSalt)
-import qualified Data.ByteString.Lazy as ByteString
+import Data.Text.Lazy (Text)
 
 data MailAddr = MailAddr {
-  _mailAddrName :: Maybe String
+  _mailAddrName :: Maybe Text
 , _mailAddr :: String
 } deriving (Show, Eq)
 
 data Mail = Mail {
   _mailFrom :: MailAddr
 , _mailTo :: NonEmpty MailAddr
-, _mailSubject :: String
-, _mailBody :: String
+, _mailSubject :: Text
+, _mailBody :: Text
 } deriving (Show, Eq)
 
 data CallbackConfig t 
@@ -64,13 +64,14 @@ type ScrapeValidation t = AccValidation [ValidationError] t
 type CronScheduleString = String
 
 type Url = String
-type HttpBody = ByteString.ByteString
+type HttpBody = Text
 type Scraper t = HttpBody -> t
 data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
 data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
                                        , _scrapeScheduleConfig :: ScrapeConfig t
                                        , _scrapeScheduleScraper :: Scraper t
                                        }                 
+
 makeLenses ''ScrapeSchedule
 makeLenses ''MailAddr
 makeLenses ''Mail

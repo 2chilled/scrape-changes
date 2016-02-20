@@ -1,4 +1,5 @@
 {-# OPTIONS_HADDOCK not-home #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Network.ScrapeChanges.Internal (
   mailScrapeConfig
@@ -28,7 +29,6 @@ import qualified Network.URI as U
 import qualified Data.Foldable as F
 import Network.ScrapeChanges.Domain
 import qualified Data.ByteString.Lens as ByteStringLens
-import qualified Data.Text.Lens as TextLens
 import qualified Text.Email.Validate as EmailValidate
 import qualified Data.Attoparsec.Text as AttoparsecText
 import qualified System.Cron.Parser as CronParser
@@ -45,6 +45,11 @@ import qualified System.IO.Strict as StrictIO
 import qualified System.Log.Logger as Log
 import qualified Data.Maybe as Maybe
 import Network.HTTP.Client (HttpException)
+import qualified Data.Text.Lazy as TextLazy
+import qualified Data.Text as TextStrict
+import qualified Data.Text.Lens as TextStrictLens
+import TextShow (TextShow)
+import qualified TextShow as TextShow
 
 type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
@@ -87,7 +92,7 @@ validateCronSchedule :: CronScheduleString -> ScrapeValidation CronScheduleStrin
 validateCronSchedule c = 
   let mapFailure = _Failure %~ \s -> [CronScheduleInvalid s]
       setSuccess = _Success .~ c
-      either' = AttoparsecText.parseOnly CronParser.cronSchedule (c ^. TextLens.packed)
+      either' = AttoparsecText.parseOnly CronParser.cronSchedule (TextStrict.pack c)
       mappedEither' = either' & mapFailure
                               & setSuccess
   in  mappedEither' ^. _AccValidation
@@ -112,10 +117,10 @@ removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catc
   where catchException e | IOError.isDoesNotExistError e = return () 
                          | otherwise = Exception.throwIO e
 
-executeCallbackConfig :: Show t => ScrapeConfig t -> t -> IO ()
+executeCallbackConfig :: TextShow t => ScrapeConfig t -> t -> IO ()
 executeCallbackConfig (ScrapeConfig url (MailConfig m)) result = 
-    let m' = m & set mailBody (show result)
-               & set mailSubject ("Changes from " ++ url)
+    let m' = m & set mailBody (TextShow.showtl result)
+               & set mailSubject (TextLazy.pack $ "Changes from " ++ url)
         mimeMail = toMimeMail m'
         debugLog = Log.debugM loggerName $ "Mail body: " ++ show m'
     in debugLog *> Mime.renderSendMail mimeMail
@@ -158,20 +163,19 @@ saveHash t hash'' = let hashOfT = hash' t
                         hashPathForT = hashPath hashOfT >>= createParentDirs
                     in  hashPathForT >>= flip writeFile hash''
 
-
 toMimeMail :: Mail -> Mime.Mail
 toMimeMail m = let toMimeAddress' ms = toList $ toMimeAddress <$> ms
                    mailToMime = toMimeAddress' $ m ^. mailTo
                    mailFromMime = toMimeAddress $ m ^. mailFrom
-                   mailSubjectMime = m ^. mailSubject . TextLens.packed
-                   mailBodyMime = m ^. mailBody . TextLens.packed
-                   mimeMail = Mime.simpleMail' (head mailToMime) mailFromMime mailSubjectMime mailBodyMime
+                   mailSubjectMime = m ^. mailSubject 
+                   mailBodyMime = m ^. mailBody
+                   mimeMail = Mime.simpleMail' (head mailToMime) mailFromMime (TextLazy.toStrict mailSubjectMime) mailBodyMime
                in mimeMail { Mime.mailTo = Mime.mailTo mimeMail ++ tail mailToMime }
 
 toMimeAddress :: MailAddr -> Mime.Address
 toMimeAddress a = Mime.Address {
-  Mime.addressName = a ^? mailAddrName . _Just . TextLens.packed
-, Mime.addressEmail = a ^. mailAddr . TextLens.packed
+  Mime.addressName = a ^? mailAddrName . _Just . (to TextLazy.toStrict)
+, Mime.addressEmail = a ^. mailAddr . TextStrictLens.packed
 }
 
 createParentDirs :: FilePath -> IO FilePath
@@ -185,8 +189,8 @@ httpExceptionHandler sc e = let maybeMail = sc ^? scrapeInfoCallbackConfig . _Ma
                             in F.sequenceA_ [Log.errorM loggerName (show e), maybeMailAction] *> Exception.throw e
                                 
   where sendMail :: Url -> Mail -> IO ()
-        sendMail url m = let m' = m & set mailBody (show e)
-                                    & set mailSubject ("Http error while requesting " ++ url)
+        sendMail url m = let m' = m & set mailBody (TextLazy.pack $ show e)
+                                    & set mailSubject (TextLazy.pack $ "Http error while requesting " ++ url)
                              mimeMail = toMimeMail m'
                          in Mime.renderSendMail mimeMail 
 
