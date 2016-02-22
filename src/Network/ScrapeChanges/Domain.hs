@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, DeriveGeneric #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
 module Network.ScrapeChanges.Domain where
@@ -7,49 +7,77 @@ import Control.Lens
 import Data.Validation
 import Data.List.NonEmpty
 import Data.Hashable (Hashable, hashWithSalt)
-import Data.Text.Lazy (Text)
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.Text.Lazy as TextLazy
+import GHC.Generics (Generic)
+
+-- |String encoded in the standard cron format
+type CronScheduleString = String
+
+type Url = String
+type HttpBody = ByteString
+type Scraper = HttpBody -> TextLazy.Text
+type Text = TextLazy.Text
 
 data MailAddr = MailAddr {
   _mailAddrName :: Maybe Text
 , _mailAddr :: String
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+makeLenses ''MailAddr
+
+instance Hashable MailAddr
 
 data Mail = Mail {
   _mailFrom :: MailAddr
 , _mailTo :: NonEmpty MailAddr
 , _mailSubject :: Text
 , _mailBody :: Text
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
 
-data CallbackConfig t 
+makeLenses ''Mail
+
+instance Hashable Mail
+
+data CallbackConfig
     -- |Send a mail when there's changed data at your scrape target.
     -- This needs sendmail to be configured correctly on the host your
     -- program runs. 
     = MailConfig Mail 
     -- |Just execute the provided function when there's changed data at
     -- your scrape target.
-    | OtherConfig (t -> IO t)
+    | OtherConfig (Text -> IO ())
 
-instance Show (CallbackConfig t) where
-  show (MailConfig mail) = "MailConfig (" ++ show mail ++ ")"
-  show (OtherConfig _) = "OtherConfig (String -> IO t)"
+makePrisms ''CallbackConfig
 
-instance Eq (CallbackConfig t) where
+instance Eq CallbackConfig where
   (MailConfig _) == (OtherConfig _) = False
   (OtherConfig _) == (MailConfig _) = False
   (OtherConfig _) == (OtherConfig _) = False
   (MailConfig m1) == (MailConfig m2) = m1 == m2
 
-data ScrapeConfig t = ScrapeConfig {
+data ScrapeConfig = ScrapeConfig {
   -- |The url to be called using GET
   _scrapeInfoUrl :: String
   -- |The callback config to be executed when something in '_scrapeInfoUrl'
   -- has changed
-, _scrapeInfoCallbackConfig :: CallbackConfig t
-} deriving (Show, Eq)
+, _scrapeInfoCallbackConfig :: CallbackConfig 
+} deriving (Eq)
 
-instance Hashable (ScrapeConfig t) where
-  hashWithSalt i c = hashWithSalt i (show c)
+makeLenses ''ScrapeConfig
+
+instance Hashable ScrapeConfig where
+  hashWithSalt i c = 
+    let scrapeInfoUrlHash = hashWithSalt i (c ^. scrapeInfoUrl)
+        mailConfigHash = hashWithSalt i (c ^? scrapeInfoCallbackConfig . _MailConfig)
+    in scrapeInfoUrlHash + mailConfigHash
+
+data ScrapeResult = CallbackCalled | CallbackNotCalled deriving Show
+data ScrapeSchedule = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
+                                     , _scrapeScheduleConfig :: ScrapeConfig
+                                     , _scrapeScheduleScraper :: Scraper
+                                     }                 
+makeLenses ''ScrapeSchedule
 
 data ValidationError = UrlNotAbsolute 
                      | UrlProtocolInvalid 
@@ -60,20 +88,3 @@ data ValidationError = UrlNotAbsolute
 
 type ScrapeValidation t = AccValidation [ValidationError] t
 
--- |String encoded in the standard cron format
-type CronScheduleString = String
-
-type Url = String
-type HttpBody = Text
-type Scraper t = HttpBody -> t
-data ScrapeResult t = CallbackCalled t | CallbackNotCalled t deriving Show
-data ScrapeSchedule t = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
-                                       , _scrapeScheduleConfig :: ScrapeConfig t
-                                       , _scrapeScheduleScraper :: Scraper t
-                                       }                 
-
-makeLenses ''ScrapeSchedule
-makeLenses ''MailAddr
-makeLenses ''Mail
-makeLenses ''ScrapeConfig
-makePrisms ''CallbackConfig

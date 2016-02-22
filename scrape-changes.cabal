@@ -39,7 +39,6 @@ library
                      , hslogger >= 1.2.9
                      , strict >= 0.3.2
                      , text >= 1.2.1.0 && < 1.2.3.0
-                     , text-show >= 2.1.2 && < 3.1
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -62,6 +61,7 @@ test-suite scrapechanges-tests
                    , hashable >= 1.2.3.3
                    , scrape-changes
                    , text >= 1.2.1.0 && < 1.2.3.0
+                   , shakespeare >= 2.0.0 && < 2.1.0
   default-language:  Haskell2010
 
 source-repository head

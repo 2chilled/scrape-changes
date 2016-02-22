@@ -48,8 +48,6 @@ import Network.HTTP.Client (HttpException)
 import qualified Data.Text.Lazy as TextLazy
 import qualified Data.Text as TextStrict
 import qualified Data.Text.Lens as TextStrictLens
-import TextShow (TextShow)
-import qualified TextShow as TextShow
 
 type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
@@ -57,7 +55,7 @@ type MailToAddr = MailAddr
 
 -- |Helper constructor for 'ScrapeConfig t' containing 'MailConfig'
 -- callback.
-mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig t
+mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig
 mailScrapeConfig siu mfa mtads = ScrapeConfig {
   _scrapeInfoUrl = siu
 , _scrapeInfoCallbackConfig = MailConfig defaultMail
@@ -71,20 +69,20 @@ mailScrapeConfig siu mfa mtads = ScrapeConfig {
 
 -- |Helper constructor for 'ScrapeConfig t' containing 'OtherConfig'
 -- callback.
-otherScrapeConfig :: ScrapeInfoUrl -> (t -> IO t) -> ScrapeConfig t
+otherScrapeConfig :: ScrapeInfoUrl -> (Text -> IO ()) -> ScrapeConfig
 otherScrapeConfig url f = ScrapeConfig {
   _scrapeInfoUrl = url
 , _scrapeInfoCallbackConfig = OtherConfig f
 }
 
-validateScrapeConfig :: ScrapeConfig t -> ScrapeValidation (ScrapeConfig t)
+validateScrapeConfig :: ScrapeConfig -> ScrapeValidation ScrapeConfig
 validateScrapeConfig si = 
   let toUnit = void
       urlValidation = validateUrl $ si ^. scrapeInfoUrl
       callbackValidation = validateCallbackConfig $ si ^. scrapeInfoCallbackConfig
   in const si <$> F.sequenceA_ [toUnit urlValidation, toUnit callbackValidation]
 
-validateCallbackConfig :: CallbackConfig t -> ScrapeValidation (CallbackConfig t)
+validateCallbackConfig :: CallbackConfig -> ScrapeValidation CallbackConfig
 validateCallbackConfig (MailConfig m) = MailConfig <$> validateMailConfig m
 validateCallbackConfig c@(OtherConfig _) = pure c
 
@@ -117,9 +115,9 @@ removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catc
   where catchException e | IOError.isDoesNotExistError e = return () 
                          | otherwise = Exception.throwIO e
 
-executeCallbackConfig :: TextShow t => ScrapeConfig t -> t -> IO ()
+executeCallbackConfig :: ScrapeConfig -> Text -> IO ()
 executeCallbackConfig (ScrapeConfig url (MailConfig m)) result = 
-    let m' = m & set mailBody (TextShow.showtl result)
+    let m' = m & set mailBody result
                & set mailSubject (TextLazy.pack $ "Changes from " ++ url)
         mimeMail = toMimeMail m'
         debugLog = Log.debugM loggerName $ "Mail body: " ++ show m'
@@ -182,7 +180,7 @@ createParentDirs :: FilePath -> IO FilePath
 createParentDirs fp = let fpDir = FilePath.takeDirectory fp
                       in Dir.createDirectoryIfMissing True fpDir *> pure fp
 
-httpExceptionHandler :: ScrapeConfig t -> HttpException -> IO t
+httpExceptionHandler :: ScrapeConfig -> HttpException -> IO t
 httpExceptionHandler sc e = let maybeMail = sc ^? scrapeInfoCallbackConfig . _MailConfig
                                 url = sc ^. scrapeInfoUrl
                                 maybeMailAction = Maybe.fromMaybe (pure ()) (sendMail url <$> maybeMail)

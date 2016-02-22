@@ -24,14 +24,11 @@ import Control.Lens
 import qualified Network.Wreq as Http
 import qualified Control.Concurrent.Async as Async
 import qualified System.Log.Logger as Log
-import Data.Hashable (Hashable)
 import qualified Data.Foldable as Foldable
 import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 import qualified Control.Monad as Monad
 import qualified Control.Exception as Exception
-import qualified Data.Text.Lazy.Lens as TextLazyLens
-import TextShow (TextShow)
 
 -- |The basic scrape function. It fires a GET request against the url
 -- defined within the provided 'ScrapeConfig'. The body is passed to the
@@ -43,11 +40,11 @@ import TextShow (TextShow)
 -- Note that you should call 'clearScrapeConfig' after executing the
 -- returned 'IO' action with the same 'ScrapeConfig' you provided to this
 -- function. This will clear all mutable state used by 'scrape'.
-scrape :: (Hashable t, TextShow t) => ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO (ScrapeResult t))
+scrape :: ScrapeConfig -> Scraper -> Either [ValidationError] (IO ScrapeResult)
 scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
               in result ^. Validation._Either
   where scrapeOrchestration = 
-          let unpackResponse = (^. Http.responseBody . TextLazyLens.utf8)
+          let unpackResponse = (^. Http.responseBody)
               urlToRequest = sc ^. scrapeInfoUrl
               requestLog = Log.infoM loggerName $ "Requesting " ++ urlToRequest
               request = (s . unpackResponse <$>) . Http.get
@@ -61,17 +58,17 @@ scrape sc s = let result = scrapeOrchestration <$ validateScrapeConfig sc
                                 in  saveHash sc currentHashedResponse <* saveHashLog
                 let executeCallbackConfig' = executeCallbackConfig sc response'
                 let saveHashAndExecuteCallbackConfig = Async.concurrently saveHash' executeCallbackConfig'
-                if hashesAreDifferent then CallbackCalled response' <$ saveHashAndExecuteCallbackConfig 
-                                      else pure $ CallbackNotCalled response'
+                if hashesAreDifferent then CallbackCalled <$ saveHashAndExecuteCallbackConfig 
+                                      else pure $ CallbackNotCalled 
 
 -- |Repeat executing 'scrape' by providing a 'CronScheduleString'. The returned
 -- IO action blocks the current thread
-repeatScrape :: (Hashable t, TextShow t) => CronScheduleString -> ScrapeConfig t -> Scraper t -> Either [ValidationError] (IO ())
+repeatScrape :: CronScheduleString -> ScrapeConfig -> Scraper -> Either [ValidationError] (IO ())
 repeatScrape cs sc s = let result = repeatScrapeAll [ScrapeSchedule cs sc s]
                            resultErrorMapped = (snd . head <$> (result ^. swapped)) ^. swapped
                        in resultErrorMapped
 
-repeatScrapeAll :: (Hashable t, TextShow t) => [ScrapeSchedule t] -> Either [(Url, [ValidationError])] (IO ())
+repeatScrapeAll :: [ScrapeSchedule] -> Either [(Url, [ValidationError])] (IO ())
 repeatScrapeAll scrapeSchedules = 
   let cronSchedules = Traversable.for scrapeSchedules $ \(ScrapeSchedule cronSchedule scrapeConfig scraper) ->
         let scrapeConfigUrl = scrapeConfig ^. scrapeInfoUrl
@@ -86,11 +83,11 @@ repeatScrapeAll scrapeSchedules =
 
 -- |Execute a list of 'ScrapeConfig' in sequence using 'scrape' and collect
 -- the results in a map containing the respective 'Url' as key.
-scrapeAll :: (Hashable t, TextShow t) => [(ScrapeConfig t, Scraper t)] -> [(Url, Either [ValidationError] (IO (ScrapeResult t)))]
+scrapeAll :: [(ScrapeConfig, Scraper)] -> [(Url, Either [ValidationError] (IO ScrapeResult))]
 scrapeAll infos = let responses = TU.uncurry scrape <$> infos 
                       urls = (^. scrapeInfoUrl) <$> (fst <$> infos)
                   in urls `zip` responses
 
 -- |Clear all mutable state associated with the provided 'ScrapeConfig'
-clearScrapeConfig :: (Hashable t) => ScrapeConfig t -> IO ()
+clearScrapeConfig :: ScrapeConfig -> IO ()
 clearScrapeConfig = removeHash

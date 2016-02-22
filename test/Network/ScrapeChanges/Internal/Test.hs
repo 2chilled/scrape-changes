@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, QuasiQuotes, OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Network.ScrapeChanges.Internal.Test where
 import Prelude hiding (filter)
@@ -19,8 +19,21 @@ import qualified Data.Validation as V
 import qualified Text.Email.Validate as EmailValidate
 import qualified Data.Text.Lazy as TextLazy
 import qualified Data.Hashable as Hashable
+import Text.Shakespeare.Text
 
 newtype NCronScheduleString = NCronScheduleString { nCronScheduleStringRun :: String } deriving Show
+
+instance Show ScrapeConfig where
+  show (ScrapeConfig url (MailConfig mail))= show [lt| 
+      ScrapeConfig { _scrapeInfoUrl = #{url}
+                   , _scrapeInfoCallbackConfig = MailConfig #{show mail}
+                   }
+    |]
+  show (ScrapeConfig url (OtherConfig _))= show [lt| 
+      ScrapeConfig { _scrapeInfoUrl = #{url}
+                   , _scrapeInfoCallbackConfig = OtherConfig (\x -> return ())
+                   }
+    |]
 
 instance Arbitrary NCronScheduleString where 
     arbitrary = NCronScheduleString <$> oneof [pure correctCronScheduleString, arbitrary]
@@ -40,12 +53,12 @@ instance Arbitrary TextLazy.Text where
 instance Arbitrary Mail where
   arbitrary = Mail <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
-instance Arbitrary (CallbackConfig ()) where
+instance Arbitrary CallbackConfig where
   arbitrary = oneof [otherConfigGen, mailConfigGen]
     where otherConfigGen = return $ OtherConfig (const $ return ())
           mailConfigGen = MailConfig <$> arbitrary
 
-instance Arbitrary (ScrapeConfig ()) where
+instance Arbitrary ScrapeConfig where
   arbitrary = helper <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
     where helper scrapeInfoUrl' config' mailFromAddr mailToAddrs = 
             let setConfig = scrapeInfoCallbackConfig .~ config'
@@ -63,10 +76,10 @@ correctMailAddr = "correct@mail.com"
 correctUrl :: String
 correctUrl = "http://www.google.de"
 
-correctMailScrapeConfig :: ScrapeConfig t
+correctMailScrapeConfig :: ScrapeConfig
 correctMailScrapeConfig = SC.mailScrapeConfig correctUrl tMailAddr (tMailAddr :| [])
 
-correctOtherScrapeConfig :: ScrapeConfig ()
+correctOtherScrapeConfig :: ScrapeConfig 
 correctOtherScrapeConfig = let setCallbackConfig = scrapeInfoCallbackConfig .~ OtherConfig (const $ return ())
                            in setCallbackConfig correctMailScrapeConfig
 
@@ -75,15 +88,16 @@ validateScrapeConfigWithBadInfoUrlShouldNotValidate =
     let wrongUrl = "httpp://www.google.de"
         scrapeInfo = scrapeInfoUrl .~ wrongUrl $ correctMailScrapeConfig 
         result = SUT.validateScrapeConfig scrapeInfo
-    in  V.AccFailure [UrlProtocolInvalid] @=? result
+    in  Just [UrlProtocolInvalid] @=? result ^? V._Failure 
 
 validateScrapeConfigShouldValidateOnValidInput :: Assertion
 validateScrapeConfigShouldValidateOnValidInput =
     let scrapeInfo = scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig 
         result = SUT.validateScrapeConfig scrapeInfo
-    in  V.AccSuccess scrapeInfo @=? result
+        --TODO more test
+    in  V.AccSuccess (scrapeInfo ^. scrapeInfoUrl) @=? (^. scrapeInfoUrl) <$> result
 
-validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants :: ScrapeConfig () -> Property
+validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants :: ScrapeConfig -> Property
 validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _OtherConfig) ==>
   let result = SUT.validateScrapeConfig si
       p1 = property $ M.isJust (result ^? V._Success)
@@ -91,7 +105,7 @@ validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si 
       p2 = property $ False `M.fromMaybe` badUrlErrorsOnly
   in p1 .||. p2
   
-validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants :: ScrapeConfig () -> Property
+validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants :: ScrapeConfig -> Property
 validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _MailConfig) ==>
   let result = SUT.validateScrapeConfig si
       failure = result ^? V._Failure
@@ -115,7 +129,7 @@ validateCronScheduleShouldSatisfyAllInvariants c =
       containsExpectedError = False `M.fromMaybe` ((CronScheduleInvalid "" `elem`) <$> (result ^? V._Failure))
   in property isCorrect .||. property containsExpectedError
 
-differentScrapeConfigsShouldYieldToDifferentHashes :: ScrapeConfig () -> ScrapeConfig () -> Property
+differentScrapeConfigsShouldYieldToDifferentHashes :: ScrapeConfig -> ScrapeConfig -> Property
 differentScrapeConfigsShouldYieldToDifferentHashes c1 c2 = 
   let isOtherConfig = M.isJust . (^? scrapeInfoCallbackConfig . _OtherConfig)
   in not (isOtherConfig c1 && isOtherConfig c2) ==> 
