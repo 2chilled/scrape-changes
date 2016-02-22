@@ -94,8 +94,7 @@ validateScrapeConfigShouldValidateOnValidInput :: Assertion
 validateScrapeConfigShouldValidateOnValidInput =
     let scrapeInfo = scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig 
         result = SUT.validateScrapeConfig scrapeInfo
-        --TODO more test
-    in  V.AccSuccess (scrapeInfo ^. scrapeInfoUrl) @=? (^. scrapeInfoUrl) <$> result
+    in  result @=? V.AccSuccess scrapeInfo
 
 validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants :: ScrapeConfig -> Property
 validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _OtherConfig) ==>
