@@ -10,6 +10,7 @@ module Network.ScrapeChanges.Internal (
 , saveHash
 , executeCallbackConfig
 , removeHash
+, removeHashes
 , hash'
 , ScrapeInfoUrl
 , MailFromAddr
@@ -100,7 +101,10 @@ type Hash = String
 hashPath :: Hash -> IO FilePath
 hashPath hash'' = let fileName = hash'' ++ ".hash"
                       buildHashPath p = p </> fileName
-                  in  buildHashPath <$> Directory.getAppUserDataDirectory "scrape-changes"
+                  in  buildHashPath <$> hashPathDir
+
+hashPathDir :: IO FilePath
+hashPathDir = Directory.getAppUserDataDirectory "scrape-changes"
 
 readLatestHash :: (Hashable t) => t -> IO (Maybe Hash)
 readLatestHash t = let readLatestHash' = hashPath (hash' t) >>= StrictIO.readFile
@@ -114,6 +118,12 @@ removeHash :: (Hashable t) => t -> IO ()
 removeHash t = ((hashPath . hash' $ t) >>= Directory.removeFile) `Exception.catch` catchException
   where catchException e | IOError.isDoesNotExistError e = return () 
                          | otherwise = Exception.throwIO e
+
+removeHashes :: IO ()
+removeHashes = let removeAction = hashPathDir >>= Directory.removeDirectory
+               in Exception.catch removeAction catchAll
+  where catchAll :: Exception.SomeException -> IO ()
+        catchAll = const . return $ ()
 
 executeCallbackConfig :: ScrapeConfig -> Text -> IO ()
 executeCallbackConfig (ScrapeConfig url (MailConfig m)) result = 
