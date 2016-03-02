@@ -1,9 +1,3 @@
--- |
--- Module      : Network.ScrapeChanges.Domain
--- Copyright   : (C) 2015-16 Matthias Herrmann
--- License     : GPL-3
--- Maintainer  : matthias.mh.herrmann@gmail.com
-
 {-# LANGUAGE TemplateHaskell, DeriveGeneric #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
