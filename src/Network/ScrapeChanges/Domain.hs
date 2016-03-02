@@ -1,3 +1,9 @@
+-- |
+-- Module      : Network.ScrapeChanges.Domain
+-- Copyright   : (C) 2015-16 Matthias Herrmann
+-- License     : GPL-3
+-- Maintainer  : matthias.mh.herrmann@gmail.com
+
 {-# LANGUAGE TemplateHaskell, DeriveGeneric #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -14,13 +20,20 @@ import GHC.Generics (Generic)
 -- |String encoded in the standard cron format
 type CronScheduleString = String
 
+-- |Url to scrape
 type Url = String
+-- |Body of the HTTP request
 type HttpBody = ByteString
-type Scraper = HttpBody -> TextLazy.Text
+-- |Function extracting 'Text' of 'HttpBody'
+type Scraper = HttpBody -> Text
+-- |Codomain of 'Scraper'
 type Text = TextLazy.Text
 
+-- |Mail address for provided 'MailConfig'
 data MailAddr = MailAddr {
+  -- |Optional name for the given '_mailAddr'
   _mailAddrName :: Maybe Text
+  -- |Mail address
 , _mailAddr :: String
 } deriving (Show, Eq, Generic)
 

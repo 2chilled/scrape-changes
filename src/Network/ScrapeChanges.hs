@@ -3,7 +3,6 @@
 -- Copyright   : (C) 2015-16 Matthias Herrmann
 -- License     : GPL-3
 -- Maintainer  : matthias.mh.herrmann@gmail.com
---
 module Network.ScrapeChanges(
   scrape
 , repeatScrape
