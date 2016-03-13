@@ -2,29 +2,45 @@
 
 import Data.ByteString (isInfixOf)
 import Data.ByteString.Lazy (ByteString, toStrict)
-import qualified Data.ByteString.Lazy as B
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
-import Text.HTML.TagSoup (Tag(..), (~==), (~/=), parseTags, partitions, innerText, fromAttrib) 
 import Data.Text.Lazy.Encoding (decodeUtf8With)
+import qualified Data.Text.Lazy.IO as TextIO
+import Data.Text.Lazy (append) 
+import Data.Foldable (find)
+import Data.Maybe (fromMaybe)
+import Text.HTML.TagSoup (Tag(..), (~==), (~/=), parseTags, fromAttrib) 
+import Network.ScrapeChanges
+import Data.List.NonEmpty (NonEmpty ((:|)))
 
 main :: IO ()
-main = do 
-  byteString <- B.readFile "/tmp/google.co.uk"
-  let scrapeText = scrapeGoogleLogo byteString
-  print scrapeText
-  putStrLn "scrape-changes examples executable. Just look at the example source code."
+main = putStrLn "scrape-changes examples executable. Just look at the example source code."
 
--- |Google logo scrape job using the tagsoup library
+-- |Google logo scrape function using the tagsoup library
 scrapeGoogleLogo :: ByteString -> Text
 scrapeGoogleLogo byteString =   
-  let tags      = parseTags byteString
-      filtered  = partitions (const True) $ -- (~== TagOpen "style" []) $
-                  takeWhile (~/= TagClose ("style" :: ByteString)) $
-                  dropWhile isDivWithBackgroundUrl tags 
-  in T.unlines $ decodeUtf8Lenient . innerText <$> filtered 
+  let tags                 = parseTags byteString
+      divWithBackgroundUrl = find (~/= TagClose ("div" :: ByteString)) $
+                             dropWhile (not . isDivWithBackgroundUrl) tags 
+      resultMaybe          = decodeUtf8Lenient . styleAttribContent <$> divWithBackgroundUrl
+  in fromMaybe "" resultMaybe 
   where decodeUtf8Lenient = decodeUtf8With $ const . const . Just $ '?'
-        isDivWithBackgroundUrl :: Tag ByteString -> Bool
         isDivWithBackgroundUrl t = 
           let containsBackgroundUrl = isInfixOf "background:url" . toStrict
-          in t ~== TagOpen ("div" :: ByteString) [] && containsBackgroundUrl (fromAttrib "style" t)
+          in t ~== TagOpen ("div" :: ByteString) [] && containsBackgroundUrl (styleAttribContent t)
+        styleAttribContent = fromAttrib "style"
+
+scrapeChangesJobs :: Either [(Url, [ValidationError])] (IO ())
+scrapeChangesJobs = repeatScrapeAll [
+    ScrapeSchedule {
+      _scrapeScheduleCron = "* * * * *"
+    , _scrapeScheduleConfig = mailScrapeConfig "http://www.google.co.uk" 
+                                               (MailAddr Nothing "max@mustermann.de") --from
+                                               (MailAddr Nothing "receiver@scrape-changes.com" :| []) --to
+    , _scrapeScheduleScraper = scrapeGoogleLogo
+    }
+  , ScrapeSchedule {
+      _scrapeScheduleCron = "* * * * *"
+    , _scrapeScheduleConfig = otherScrapeConfig "http://www.google.co.uk" 
+                                                (\text -> TextIO.putStrLn $ "Change detected: " `append` text)
+    , _scrapeScheduleScraper = scrapeGoogleLogo
+    }
+  ]
