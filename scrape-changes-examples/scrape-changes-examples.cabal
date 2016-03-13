@@ -1,0 +1,28 @@
+name:                scrape-changes-examples
+version:             0.1.0.0
+synopsis:            Basic usage examples for scrape-changes
+description:         Basic usage examples for scrape-changes, showcasing how to use the library.
+license:             GPL-3
+license-file:        ../LICENSE
+author:              Matthias Herrmann
+maintainer:          matthias.mh.herrmann@googlemail.com
+-- copyright:           
+category:            Network
+build-type:          Simple
+-- extra-source-files:  
+cabal-version:       >=1.14
+
+executable scrapechanges-examples
+  hs-source-dirs:    .
+  main-is:           examples.hs
+  build-depends:     base >=4.8 && <4.9 
+                   , scrape-changes
+                   , tagsoup
+                   , text
+                   , bytestring
+  default-language:  Haskell2010
+  ghc-options:       -Wall -fno-warn-unused-binds
+
+source-repository head
+  type:           git
+  location:       https://github.com/2chilled/scrape-changes
