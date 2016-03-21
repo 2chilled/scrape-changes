@@ -8,8 +8,8 @@ import Data.Text.Lazy (append)
 import Data.Foldable (find)
 import Data.Maybe (fromMaybe)
 import Text.HTML.TagSoup (Tag(..), (~==), (~/=), parseTags, fromAttrib) 
-import Network.ScrapeChanges
 import Data.List.NonEmpty (NonEmpty ((:|)))
+import Network.ScrapeChanges
 
 main :: IO ()
 main = putStrLn "scrape-changes examples executable. Just look at the example source code."
@@ -30,6 +30,7 @@ scrapeGoogleLogo byteString =
 
 scrapeChangesJobs :: Either [(Url, [ValidationError])] (IO ())
 scrapeChangesJobs = repeatScrapeAll [
+    -- |Checks each minute for changes and sends a mail if there are any
     ScrapeSchedule {
       _scrapeScheduleCron = "* * * * *"
     , _scrapeScheduleConfig = mailScrapeConfig "http://www.google.co.uk" 
@@ -37,6 +38,7 @@ scrapeChangesJobs = repeatScrapeAll [
                                                (MailAddr Nothing "receiver@scrape-changes.com" :| []) --to
     , _scrapeScheduleScraper = scrapeGoogleLogo
     }
+    -- |Checks each minute for changes and notifies stdout if there are any
   , ScrapeSchedule {
       _scrapeScheduleCron = "* * * * *"
     , _scrapeScheduleConfig = otherScrapeConfig "http://www.google.co.uk" 
