@@ -21,6 +21,7 @@ executable scrapechanges-examples
                    , text
                    , bytestring
                    , semigroups
+                   , hslogger
   default-language:  Haskell2010
   ghc-options:       -Wall -fno-warn-unused-binds
 
