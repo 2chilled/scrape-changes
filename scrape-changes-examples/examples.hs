@@ -61,4 +61,3 @@ configureLogging = do
 
 thisLogger :: String
 thisLogger = "scrape-changes-examples"
-
