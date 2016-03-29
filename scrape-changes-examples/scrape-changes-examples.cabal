@@ -3,7 +3,7 @@ version:             0.1.0.0
 synopsis:            Basic usage examples for scrape-changes
 description:         Basic usage examples for scrape-changes, showcasing how to use the library.
 license:             GPL-3
-license-file:        ../LICENSE
+license-file:        ../scrape-changes/LICENSE
 author:              Matthias Herrmann
 maintainer:          matthias.mh.herrmann@googlemail.com
 -- copyright:           
