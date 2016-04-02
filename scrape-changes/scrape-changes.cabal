@@ -49,6 +49,7 @@ test-suite scrapechanges-tests
   type:              exitcode-stdio-1.0
   hs-source-dirs:    test
   main-is:           TestMain.hs
+  other-modules:     Network.ScrapeChanges.Internal.Test
   build-depends:     base >=4.8 && <4.9
                    , QuickCheck >=2.0
                    , test-framework >=0.1.0
