@@ -10,19 +10,20 @@ issue or file a PR.
 ```haskell
 scrapeChangesJobs :: Either [(Url, [ValidationError])] (IO ())
 scrapeChangesJobs = repeatScrapeAll [
-    -- |Checks each minute for changes and sends a mail if there are any
+    -- Checks each minute for changes and sends a mail if there are any
     ScrapeSchedule {
-      _scrapeScheduleCron = "* * * * *"
-    , _scrapeScheduleConfig = mailScrapeConfig "http://www.google.co.uk" --to scrape
-                                               (MailAddr Nothing "max@mustermann.de") --from
-                                               (MailAddr Nothing "receiver@scrape-changes.com" :| []) --to
+      _scrapeScheduleCron = "* * * * *" -- std cron format
+    , _scrapeScheduleConfig = mailScrapeConfig "http://www.google.co.uk" -- to scrape
+                                               (MailAddr Nothing "max@mustermann.de") -- from
+                                               (MailAddr Nothing "receiver@scrape-changes.com" :| []) -- to
     , _scrapeScheduleScraper = scrapeGoogleLogo --scrape function
     }
-    -- |Checks each minute for changes and notifies to syslog if there are any
+    -- Checks each minute for changes and notifies to syslog if there are any
   , ScrapeSchedule {
       _scrapeScheduleCron = "* * * * *"
     , _scrapeScheduleConfig = otherScrapeConfig "http://www.google.co.uk" 
-                                                (\text -> Logger.infoM thisLogger . show $ "Change detected: " <> text)
+                                                (\text -> Logger.infoM thisLogger . show $ 
+                                                          "Change detected: " <> text)
     , _scrapeScheduleScraper = scrapeGoogleLogo
     }
   ]
