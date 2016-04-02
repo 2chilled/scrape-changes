@@ -4,6 +4,8 @@ synopsis:            Scrape websites for changes
 description:         This library scrapes websites and invokes callbacks when there are changes, similar to a RSS reader.
                      Sending an email by invoking sendmail is a built-in callback mechanism. Of course, users can provide 
                      their own callback function in addition.
+                     .
+                     Look at "Network.ScrapeChanges" for a full working example on how to use "scrape-changes".
 license:             GPL-3
 license-file:        LICENSE
 author:              Matthias Herrmann

@@ -54,7 +54,7 @@ type ScrapeInfoUrl = String
 type MailFromAddr = MailAddr
 type MailToAddr = MailAddr
 
--- |Helper constructor for 'ScrapeConfig t' containing 'MailConfig'
+-- |Helper constructor for 'ScrapeConfig' containing 'MailConfig'
 -- callback.
 mailScrapeConfig :: ScrapeInfoUrl -> MailFromAddr -> NonEmpty MailToAddr -> ScrapeConfig
 mailScrapeConfig siu mfa mtads = ScrapeConfig {
@@ -68,7 +68,7 @@ mailScrapeConfig siu mfa mtads = ScrapeConfig {
         , _mailBody = ""
         }
 
--- |Helper constructor for 'ScrapeConfig t' containing 'OtherConfig'
+-- |Helper constructor for 'ScrapeConfig' containing 'OtherConfig'
 -- callback.
 otherScrapeConfig :: ScrapeInfoUrl -> (Text -> IO ()) -> ScrapeConfig
 otherScrapeConfig url f = ScrapeConfig {
@@ -182,7 +182,7 @@ toMimeMail m = let toMimeAddress' ms = toList $ toMimeAddress <$> ms
 
 toMimeAddress :: MailAddr -> Mime.Address
 toMimeAddress a = Mime.Address {
-  Mime.addressName = a ^? mailAddrName . _Just . (to TextLazy.toStrict)
+  Mime.addressName = a ^? mailAddrName . _Just . to TextLazy.toStrict
 , Mime.addressEmail = a ^. mailAddr . TextStrictLens.packed
 }
 

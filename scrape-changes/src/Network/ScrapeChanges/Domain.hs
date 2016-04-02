@@ -79,7 +79,10 @@ instance Hashable ScrapeConfig where
         mailConfigHash = hashWithSalt i (c ^? scrapeInfoCallbackConfig . _MailConfig)
     in scrapeInfoUrlHash + mailConfigHash
 
-data ScrapeResult = CallbackCalled | CallbackNotCalled deriving Show
+data ScrapeResult = -- |Signals that the last execution of the provided 'ScrapeConfig' led to execution of 'CallbackConfig'
+                    CallbackCalled 
+                    -- |Signals that the last execution of the provided 'ScrapeConfig' didn't lead to execution of 'CallbackConfig'
+                  | CallbackNotCalled deriving Show
 data ScrapeSchedule = ScrapeSchedule { _scrapeScheduleCron :: CronScheduleString
                                      , _scrapeScheduleConfig :: ScrapeConfig
                                      , _scrapeScheduleScraper :: Scraper
