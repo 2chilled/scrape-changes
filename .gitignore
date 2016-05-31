@@ -21,3 +21,4 @@ shell.nix
 tags
 default.nix
 *.drv
+.stack-work

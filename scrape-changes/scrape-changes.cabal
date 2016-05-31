@@ -26,7 +26,7 @@ library
                      , validation >=0.5.1 && < 0.6
                      , lens >=4.12 && <4.14
                      , mime-mail >= 0.4 && < 0.5
-                     , network-uri >=2.6.0.3 && < 2.6.1
+                     , network-uri >=2.6.1.0 && < 2.7
                      , email-validate >= 2.0 && < 3.0
                      , semigroups >= 0.16
                      , cron >= 0.3.2
