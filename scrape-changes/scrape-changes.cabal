@@ -1,5 +1,5 @@
 name:                scrape-changes
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Scrape websites for changes
 description:         This library scrapes websites and invokes callbacks when there are changes, similar to a RSS reader.
                      Sending an email by invoking sendmail is a built-in callback mechanism. Of course, users can provide 
