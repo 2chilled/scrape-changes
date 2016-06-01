@@ -1,5 +1,5 @@
 name:                scrape-changes
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            Scrape websites for changes
 description:         This library scrapes websites and invokes callbacks when there are changes, similar to a RSS reader.
                      Sending an email by invoking sendmail is a built-in callback mechanism. Of course, users can provide 
@@ -22,9 +22,9 @@ library
                        Network.ScrapeChanges.Internal
   other-modules:       
   other-extensions:    
-  build-depends:       base >=4.8 && <4.9
+  build-depends:       base >=4.8 && <5.0
                      , validation >=0.5.1 && < 0.6
-                     , lens >=4.12 && <4.14
+                     , lens >=4.12 && <4.20
                      , mime-mail >= 0.4 && < 0.5
                      , network-uri >=2.6.1.0 && < 2.7
                      , email-validate >= 2.0 && < 3.0
@@ -57,7 +57,7 @@ test-suite scrapechanges-tests
                    , test-framework-hunit >= 0.3.0.2
                    , HUnit >= 1.2.5.2
                    , validation >=0.5.1 && < 0.6
-                   , lens >=4.12 && <4.14
+                   , lens >=4.12 && <4.20
                    , email-validate >= 2.0 && < 3.0
                    , cron >= 0.3.2
                    , semigroups >= 0.16

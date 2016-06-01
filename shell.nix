@@ -4,7 +4,7 @@ in {
   scrapeChangesStackEnv = pkgs.haskell.lib.buildStackProject {
     name = "scrapeChangesStackEnv";
     buildInputs = with haskellPkgs; [
-      hasktags stack hdevtools ghc-mod pkgs.zlib
+      stack pkgs.zlib hasktags hdevtools ghc-mod 
     ]; 
   };
 }

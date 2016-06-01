@@ -16,7 +16,6 @@ cabal.sandbox.config
 *.hp
 Setup.hs
 *.swp
-shell.nix
 *.log
 tags
 default.nix
