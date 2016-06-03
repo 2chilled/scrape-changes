@@ -50,7 +50,7 @@ test-suite scrapechanges-tests
   hs-source-dirs:    test
   main-is:           TestMain.hs
   other-modules:     Network.ScrapeChanges.Internal.Test
-  build-depends:     base >=4.8 && <4.9
+  build-depends:     base >=4.8 && <5.0
                    , QuickCheck >=2.0
                    , test-framework >=0.1.0
                    , test-framework-quickcheck2 >=0.3.0.3
