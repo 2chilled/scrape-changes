@@ -2,7 +2,7 @@ name:                scrape-changes
 version:             0.1.0.2
 synopsis:            Scrape websites for changes
 description:         This library scrapes websites and invokes callbacks when there are changes, similar to a RSS reader.
-                     Sending an email by invoking sendmail is a built-in callback mechanism. Of course, users can provide 
+                     Sending an email by invoking sendmail is a built-in callback mechanism. Of course, users can provide
                      their own callback function in addition.
                      .
                      Look at "Network.ScrapeChanges" for a full working example on how to use "scrape-changes".
@@ -10,18 +10,18 @@ license:             GPL-3
 license-file:        LICENSE
 author:              Matthias Herrmann
 maintainer:          matthias.mh.herrmann@googlemail.com
--- copyright:           
+-- copyright:
 category:            Network
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.14
 
 library
-  exposed-modules:     Network.ScrapeChanges 
+  exposed-modules:     Network.ScrapeChanges
                        Network.ScrapeChanges.Domain
                        Network.ScrapeChanges.Internal
-  other-modules:       
-  other-extensions:    
+  other-modules:
+  other-extensions:
   build-depends:       base >=4.8 && <5.0
                      , validation >=0.5.1 && < 0.6
                      , lens >=4.12 && <4.20

@@ -6,10 +6,10 @@ license:             GPL-3
 license-file:        ../scrape-changes/LICENSE
 author:              Matthias Herrmann
 maintainer:          matthias.mh.herrmann@googlemail.com
--- copyright:           
+-- copyright:
 category:            Network
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.14
 
 executable scrapechanges-examples
