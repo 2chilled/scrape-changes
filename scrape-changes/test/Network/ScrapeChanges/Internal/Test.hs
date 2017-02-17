@@ -24,18 +24,18 @@ import Text.Shakespeare.Text
 newtype NCronScheduleString = NCronScheduleString { nCronScheduleStringRun :: String } deriving Show
 
 instance Show ScrapeConfig where
-  show (ScrapeConfig url (MailConfig mail))= show [lt| 
+  show (ScrapeConfig url (MailConfig mail))= show [lt|
       ScrapeConfig { _scrapeInfoUrl = #{url}
                    , _scrapeInfoCallbackConfig = MailConfig #{show mail}
                    }
     |]
-  show (ScrapeConfig url (OtherConfig _))= show [lt| 
+  show (ScrapeConfig url (OtherConfig _))= show [lt|
       ScrapeConfig { _scrapeInfoUrl = #{url}
                    , _scrapeInfoCallbackConfig = OtherConfig (\x -> return ())
                    }
     |]
 
-instance Arbitrary NCronScheduleString where 
+instance Arbitrary NCronScheduleString where
     arbitrary = NCronScheduleString <$> oneof [pure correctCronScheduleString, arbitrary]
 
 correctCronScheduleString :: String
@@ -60,12 +60,9 @@ instance Arbitrary CallbackConfig where
 
 instance Arbitrary ScrapeConfig where
   arbitrary = helper <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-    where helper scrapeInfoUrl' config' mailFromAddr mailToAddrs = 
+    where helper scrapeInfoUrl' config' mailFromAddr mailToAddrs =
             let setConfig = scrapeInfoCallbackConfig .~ config'
             in setConfig $ SC.mailScrapeConfig scrapeInfoUrl' mailFromAddr mailToAddrs
-
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = (:|) <$> arbitrary <*> arbitrary
 
 tMailAddr :: MailAddr
 tMailAddr = MailAddr (Just $ TextLazy.pack "Max Mustermann") "max@mustermann.com"
@@ -79,20 +76,20 @@ correctUrl = "http://www.google.de"
 correctMailScrapeConfig :: ScrapeConfig
 correctMailScrapeConfig = SC.mailScrapeConfig correctUrl tMailAddr (tMailAddr :| [])
 
-correctOtherScrapeConfig :: ScrapeConfig 
+correctOtherScrapeConfig :: ScrapeConfig
 correctOtherScrapeConfig = let setCallbackConfig = scrapeInfoCallbackConfig .~ OtherConfig (const $ return ())
                            in setCallbackConfig correctMailScrapeConfig
 
 validateScrapeConfigWithBadInfoUrlShouldNotValidate :: Assertion
-validateScrapeConfigWithBadInfoUrlShouldNotValidate = 
+validateScrapeConfigWithBadInfoUrlShouldNotValidate =
     let wrongUrl = "httpp://www.google.de"
-        scrapeInfo = scrapeInfoUrl .~ wrongUrl $ correctMailScrapeConfig 
+        scrapeInfo = scrapeInfoUrl .~ wrongUrl $ correctMailScrapeConfig
         result = SUT.validateScrapeConfig scrapeInfo
-    in  Just [UrlProtocolInvalid] @=? result ^? V._Failure 
+    in  Just [UrlProtocolInvalid] @=? result ^? V._Failure
 
 validateScrapeConfigShouldValidateOnValidInput :: Assertion
 validateScrapeConfigShouldValidateOnValidInput =
-    let scrapeInfo = scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig 
+    let scrapeInfo = scrapeInfoUrl .~ correctUrl $ correctMailScrapeConfig
         result = SUT.validateScrapeConfig scrapeInfo
     in  result @=? V.AccSuccess scrapeInfo
 
@@ -103,7 +100,7 @@ validateScrapeConfigWithOtherConfigShouldSatisfyAllInvariants si = M.isJust (si 
       badUrlErrorsOnly = (null . (L.\\ [UrlNotAbsolute, UrlProtocolInvalid])) <$> (result ^? V._Failure)
       p2 = property $ False `M.fromMaybe` badUrlErrorsOnly
   in p1 .||. p2
-  
+
 validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants :: ScrapeConfig -> Property
 validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^? scrapeInfoCallbackConfig . _MailConfig) ==>
   let result = SUT.validateScrapeConfig si
@@ -111,7 +108,7 @@ validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^
       mailConfigLens = scrapeInfoCallbackConfig . _MailConfig
       (Just mailConfig) = si ^? mailConfigLens
       invalidMailAddr = not . EmailValidate.isValid . (^. ByteStringLens.packedChars)
-      invalidMailAddrsProp es = let expected = (\errors' -> (`elem` errors') `L.all` es) <$> failure 
+      invalidMailAddrsProp es = let expected = (\errors' -> (`elem` errors') `L.all` es) <$> failure
                                 in True `M.fromMaybe` expected
       mailFromAddr = mailConfig ^. mailFrom . mailAddr
       mailToAddrs = mailConfig ^.. mailTo . traverse . mailAddr
@@ -121,7 +118,7 @@ validateScrapeConfigWithMailConfigShouldSatisfyAllInvariants si = M.isJust (si ^
   in property invalidMailFromAddrsProp .&&. property invalidMailToAddrsProp
 
 validateCronScheduleShouldSatisfyAllInvariants :: NCronScheduleString -> Property
-validateCronScheduleShouldSatisfyAllInvariants c = 
+validateCronScheduleShouldSatisfyAllInvariants c =
   let result = SUT.validateCronSchedule $ nCronScheduleStringRun c
       isCorrect = nCronScheduleStringRun c /= correctCronScheduleString
                     || M.isJust (result ^? V._Success)
@@ -129,22 +126,22 @@ validateCronScheduleShouldSatisfyAllInvariants c =
   in property isCorrect .||. property containsExpectedError
 
 differentScrapeConfigsShouldYieldToDifferentHashes :: ScrapeConfig -> ScrapeConfig -> Property
-differentScrapeConfigsShouldYieldToDifferentHashes c1 c2 = 
+differentScrapeConfigsShouldYieldToDifferentHashes c1 c2 =
   let isOtherConfig = M.isJust . (^? scrapeInfoCallbackConfig . _OtherConfig)
-  in not (isOtherConfig c1 && isOtherConfig c2) ==> 
+  in not (isOtherConfig c1 && isOtherConfig c2) ==>
     let hashedC1 = Hashable.hash c1
         hashedC2 = Hashable.hash c2
-        correspondenceBetweenEqualsAndHashable = 
+        correspondenceBetweenEqualsAndHashable =
           label "correspondenceBetweenEqualsAndHashable" $ if c1 == c2 then hashedC1 == hashedC2
                                                                        else hashedC1 /= hashedC2
         differentMailConfigAttribute = let setMailSubject = set $ scrapeInfoCallbackConfig . _MailConfig . mailSubject
                                            c1' = c1 & setMailSubject (TextLazy.pack "sub1")
-                                           c2' = c2 & setMailSubject (TextLazy.pack "sub2") 
+                                           c2' = c2 & setMailSubject (TextLazy.pack "sub2")
                                        in label "differentMailConfigAttribute" $ c1' /= c2'
     in correspondenceBetweenEqualsAndHashable .&&. differentMailConfigAttribute
 
 tests :: [TF.Test]
-tests = 
+tests =
   [
     testGroup "Network.ScrapeChanges.Internal"
     [
