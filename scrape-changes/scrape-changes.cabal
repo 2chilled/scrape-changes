@@ -23,7 +23,7 @@ library
   other-modules:
   other-extensions:
   build-depends:       base >=4.8 && <5.0
-                     , validation >=0.5.1
+                     , validation >=0.5.1 && < 6
                      , lens >=4.12
                      , mime-mail >= 0.4
                      , network-uri >=2.6.1.0
@@ -56,7 +56,7 @@ test-suite scrapechanges-tests
                    , test-framework-quickcheck2 >=0.3.0.3
                    , test-framework-hunit >= 0.3.0.2
                    , HUnit >= 1.2.5.2
-                   , validation >=0.5.1
+                   , validation >=0.5.1 && < 6
                    , lens >=4.12
                    , email-validate >= 2.0
                    , cron >= 0.3.2
